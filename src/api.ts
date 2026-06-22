@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const getHeaders = () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -141,7 +141,7 @@ export async function uploadGeneticReportFile(childId: string, file: File, notes
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch('http://localhost:5000/api/genetic/upload', {
+  const response = await fetch(`${BASE_URL}/genetic/upload`, {
     method: 'POST',
     headers,
     body: formData,
