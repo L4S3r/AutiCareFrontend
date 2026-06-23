@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
-import { login } from '../api';
+import { login, firebaseLogin } from '../api';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 interface LoginProps {
   language: Language;
@@ -52,13 +54,29 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
     setLoading(true);
 
     try {
-      // 1. Try to login via actual backend API
-      let apiRole = 'parent';
-      if (selectedRole === 'Doctor') apiRole = 'doctor';
-      if (selectedRole === 'Therapist') apiRole = 'therapist';
+      const isEmail = emailOrUsername.includes('@');
 
-      try {
-        const res = await login({ email: emailOrUsername, password });
+      if (isEmail) {
+        // Firebase Authentication Flow
+        let userCredential;
+        try {
+          userCredential = await signInWithEmailAndPassword(auth, emailOrUsername.trim().toLowerCase(), password);
+        } catch (fbErr: any) {
+          throw new Error(isRtl ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email address or password');
+        }
+
+        const fbUser = userCredential.user;
+        if (!fbUser.emailVerified) {
+          await signOut(auth);
+          throw new Error(
+            isRtl 
+              ? 'الرجاء تأكيد بريدك الإلكتروني أولاً. تم إرسال رابط التأكيد إلى بريدك الإلكتروني.' 
+              : 'Please verify your email address. A confirmation link was sent to your email.'
+          );
+        }
+
+        const idToken = await fbUser.getIdToken();
+        const res = await firebaseLogin({ idToken });
         if (res.success && res.user) {
           let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
           if (res.user.role === 'doctor') finalRole = 'Doctor';
@@ -68,8 +86,22 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
           setLoading(false);
           return;
         }
-      } catch (apiErr) {
-        console.warn('Backend API login failed, attempting local mock DB check...', apiErr);
+      } else {
+        // Standard API Login Flow (e.g. for child usernames or local testing)
+        try {
+          const res = await login({ email: emailOrUsername, password });
+          if (res.success && res.user) {
+            let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
+            if (res.user.role === 'doctor') finalRole = 'Doctor';
+            else if (res.user.role === 'therapist') finalRole = 'Therapist';
+            
+            onSuccess(finalRole, res.user);
+            setLoading(false);
+            return;
+          }
+        } catch (apiErr) {
+          console.warn('Backend API login failed, attempting local mock DB check...', apiErr);
+        }
       }
 
       // 2. Check mock database in localStorage

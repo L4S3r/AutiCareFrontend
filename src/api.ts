@@ -52,6 +52,17 @@ export async function login(data: any) {
   return res;
 }
 
+export async function firebaseLogin(data: any) {
+  const res = await request('/auth/firebase-login', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (res.token) {
+    localStorage.setItem('token', res.token);
+  }
+  return res;
+}
+
 export async function getMe() {
   return request('/auth/me');
 }

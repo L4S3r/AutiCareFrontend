@@ -9,6 +9,8 @@ import {
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
 import { register, createPatient } from '../api';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 interface SignUpProps {
   language: Language;
@@ -243,7 +245,20 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
     setLoading(true);
 
     try {
-      // Generate clean role value for backend
+      // 1. Register user in Firebase Authentication
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Send email confirmation link through Firebase
+        await sendEmailVerification(userCredential.user);
+      } catch (fbErr: any) {
+        if (fbErr.code === 'auth/email-already-in-use') {
+          throw new Error(isRtl ? 'البريد الإلكتروني مسجل بالفعل' : 'Email address is already registered');
+        }
+        throw fbErr;
+      }
+
+      // 2. Sync to local MongoDB backend
       const backendRole = selectedRole === 'Doctor' ? 'doctor' : selectedRole === 'Therapist' ? 'therapist' : 'parent';
       const registerData = {
         name: fullName,
@@ -253,7 +268,6 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
         clinic: selectedRole !== 'Parent' ? `${profTitle} - ${clinicName}` : undefined
       };
 
-      // Call actual backend registration endpoint
       const registerRes = await register(registerData);
       
       // Save client-side mock user details in localStorage
@@ -879,6 +893,11 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
               <p className="text-xs text-slate-400 font-semibold leading-relaxed">
                 {t.authSuccessSub}
               </p>
+              <div className="mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold leading-normal text-left">
+                {isRtl 
+                  ? '⚠️ تم إرسال رابط تأكيد إلى بريدك الإلكتروني. يرجى الضغط عليه لتأكيد حسابك قبل تسجيل الدخول.' 
+                  : '⚠️ A confirmation link has been sent to your email. Please click it to verify your account before you can log in.'}
+              </div>
             </div>
 
             {/* Twin Credentials Cards Grid */}
