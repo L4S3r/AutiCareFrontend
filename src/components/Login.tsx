@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Mail, Lock, Info, ArrowRight, CheckCircle2, Sparkles,
-  ShieldCheck, Check, Stethoscope, Users, Eye, EyeOff, Clock
+  ShieldCheck, Check, Stethoscope, Users, Eye, EyeOff, Clock, Copy, ChevronRight
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
@@ -22,7 +22,8 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
   const isRtl = language === 'ar';
 
   // 1: Role Selection, 2: Login Form, 3: Account Pending Verification, 4: Forgot Password Form
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1); // 5: Google Child Setup Screen
+  // 1: Role Selection, 2: Login Form, 3: Account Pending Verification, 4: Forgot Password Form, 5: Google Child Setup Screen, 6: Google Signup Success Screen
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [selectedRole, setSelectedRole] = useState<'Parent' | 'Doctor' | 'Therapist' | null>(null);
 
   // Form Fields
@@ -41,6 +42,22 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
   const [childAge, setChildAge] = useState('');
   const [childGender, setChildGender] = useState('');
   const [diagnosisLevel, setDiagnosisLevel] = useState('');
+
+  // Google Signup Success State
+  const [generatedChildCreds, setGeneratedChildCreds] = useState<{ username: string; pass: string } | null>(null);
+  const [showChildPassword, setShowChildPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [googleSuccessUser, setGoogleSuccessUser] = useState<any>(null);
+
+  const handleCopyChildCreds = () => {
+    if (generatedChildCreds) {
+      navigator.clipboard.writeText(
+        `Username: ${generatedChildCreds.username}\nPassword: ${generatedChildCreds.pass}`
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const forgotT = {
     en: {
@@ -158,6 +175,11 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
     
     setLoading(true);
     try {
+      const formattedChildName = childName.trim().replace(/\s+/g, '_').toLowerCase();
+      const randomNum = Math.floor(100 + Math.random() * 900);
+      const childUsername = `${formattedChildName}_${randomNum}`;
+      const childPass = `child_${Math.floor(100000 + Math.random() * 900000)}`;
+
       // Register Parent + Child in MongoDB
       const res = await firebaseLogin({
         idToken: googleUser.idToken,
@@ -174,34 +196,35 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         const usersJson = localStorage.getItem('auticare_mock_db');
         const mockDB = usersJson ? JSON.parse(usersJson) : { users: [] };
         
-        // Prevent duplicate registration in local mock storage
-        const userExists = mockDB.users.some((u: any) => u.email.toLowerCase() === googleUser.email.toLowerCase());
-        if (!userExists) {
-          const formattedChildName = childName.trim().replace(/\s+/g, '_').toLowerCase();
-          const randomNum = Math.floor(100 + Math.random() * 900);
-          const childUsername = `${formattedChildName}_${randomNum}`;
-          const childPass = `child_${Math.floor(100000 + Math.random() * 900000)}`;
+        let parentInMock = mockDB.users.find((u: any) => u.email.toLowerCase() === googleUser.email.toLowerCase());
+        
+        const childData = {
+          name: childName,
+          username: childUsername,
+          password: childPass,
+          age: childAge,
+          level: diagnosisLevel,
+          gender: childGender
+        };
 
+        if (parentInMock) {
+          parentInMock.child = childData;
+        } else {
           const newUser = {
             name: googleUser.displayName,
             email: googleUser.email.toLowerCase(),
             password: `fb_${googleUser.idToken.slice(0, 10)}`,
             role: 'Parent',
-            child: {
-              name: childName,
-              username: childUsername,
-              password: childPass,
-              age: childAge,
-              level: diagnosisLevel,
-              gender: childGender
-            },
+            child: childData,
             status: 'approved'
           };
           mockDB.users.push(newUser);
-          localStorage.setItem('auticare_mock_db', JSON.stringify(mockDB));
         }
+        localStorage.setItem('auticare_mock_db', JSON.stringify(mockDB));
 
-        onSuccess('Parent', res.user);
+        setGeneratedChildCreds({ username: childUsername, pass: childPass });
+        setGoogleSuccessUser(res.user);
+        setStep(6);
       }
     } catch (err: any) {
       console.error('Child registration error:', err);
@@ -984,6 +1007,126 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
               </button>
 
             </form>
+          </motion.div>
+        )}
+
+        {/* STEP 6: GOOGLE SIGNUP SUCCESS SCREEN */}
+        {step === 6 && generatedChildCreds && googleUser && (
+          <motion.div
+            key="google-signup-parent-success"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="max-w-xl mx-auto bg-white rounded-3xl border border-sky-100 shadow-xl p-8 space-y-6 text-center"
+          >
+            <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                {t.authSuccessTitle}
+              </h3>
+              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                {t.authSuccessSub}
+              </p>
+            </div>
+
+            {/* Twin Credentials Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Parent Credentials Card */}
+              <div className="bg-slate-50 border border-slate-200/50 rounded-2xl p-5 text-left space-y-3">
+                <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">
+                  {t.authParentAccountDetails}
+                </span>
+                <div className="space-y-1.5 text-xs text-slate-600 font-semibold">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-slate-400 uppercase">Parent Name</span>
+                    <span className="font-extrabold text-slate-800 truncate">{googleUser.displayName}</span>
+                  </div>
+                  <div className="flex flex-col pt-1">
+                    <span className="text-[9px] text-slate-400 uppercase">Email</span>
+                    <span className="font-extrabold text-slate-800 truncate">{googleUser.email}</span>
+                  </div>
+                  <div className="flex flex-col pt-1">
+                    <span className="text-[9px] text-slate-400 uppercase">Auth Provider</span>
+                    <span className="font-extrabold text-slate-800 truncate">Google Sign-In</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Child Credentials Card */}
+              <div className="bg-sky-50/50 border border-sky-100 rounded-2xl p-5 text-left space-y-3 relative overflow-hidden">
+                <span className="text-[10px] font-black uppercase text-sky-700 block tracking-wider flex items-center space-x-1">
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>{t.authChildAccountDetails}</span>
+                </span>
+                
+                <div className="space-y-1.5 text-xs text-slate-600 font-semibold relative z-10">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-sky-600 uppercase">Child Username</span>
+                    <span className="font-extrabold text-slate-800 truncate">{generatedChildCreds.username}</span>
+                  </div>
+                  
+                  <div className="flex flex-col pt-1">
+                    <span className="text-[9px] text-sky-600 uppercase">Child Password</span>
+                    <div className="flex items-center justify-between bg-white border border-sky-100 rounded-lg px-2 py-1 mt-0.5">
+                      <span className="font-mono font-bold text-slate-800 truncate select-all">
+                        {showChildPassword ? generatedChildCreds.pass : '••••••••'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowChildPassword(!showChildPassword)}
+                        className="text-slate-400 hover:text-sky-600 transition-colors ml-1"
+                      >
+                        {showChildPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      onClick={handleCopyChildCreds}
+                      className="w-full py-1 bg-white hover:bg-sky-50 text-[10px] text-sky-700 font-bold border border-sky-200 rounded-lg transition-colors flex items-center justify-center space-x-1"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{copied ? (isRtl ? 'تم النسخ!' : 'Copied!') : (isRtl ? 'نسخ بيانات الطفل' : 'Copy child credentials')}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <p className="text-[11px] text-slate-400 leading-normal font-semibold">
+              {t.authSaveCreds}
+            </p>
+
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  if (googleSuccessUser) {
+                    onSuccess('Parent', {
+                      ...googleSuccessUser,
+                      child: {
+                        name: childName,
+                        username: generatedChildCreds.username,
+                        password: generatedChildCreds.pass,
+                        age: childAge,
+                        level: diagnosisLevel,
+                        gender: childGender
+                      }
+                    });
+                  }
+                }}
+                className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-sky-500/20 cursor-pointer flex items-center justify-center space-x-2"
+              >
+                <span>{t.authGoDashboard}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
           </motion.div>
         )}
 

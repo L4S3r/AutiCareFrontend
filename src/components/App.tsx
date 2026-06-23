@@ -141,6 +141,18 @@ export default function App({ initialTab = 'home' }: AppProps) {
           
           if (parsed.child) {
             setActiveChild(parsed.child);
+          } else if (parsed.role === 'Parent') {
+            try {
+              const patientsRes = await getPatients();
+              if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
+                const formattedChild = formatChildProfile(patientsRes.data[0]);
+                setActiveChild(formattedChild);
+                parsed.child = formattedChild;
+                localStorage.setItem('auticare_active_user', JSON.stringify(parsed));
+              }
+            } catch (err) {
+              console.error('Failed to fetch patient on session restoration:', err);
+            }
           }
           return;
         } catch (e) {}
@@ -164,7 +176,22 @@ export default function App({ initialTab = 'home' }: AppProps) {
             // Load child profile details
             const patientsRes = await getPatients();
             if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
-              setActiveChild(formatChildProfile(patientsRes.data[0]));
+              const formattedChild = formatChildProfile(patientsRes.data[0]);
+              setActiveChild(formattedChild);
+              
+              // Also update auticare_active_user to include child info
+              const sessionUser = {
+                ...userRes.user,
+                role: mappedRole,
+                child: formattedChild
+              };
+              localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
+            } else {
+              const sessionUser = {
+                ...userRes.user,
+                role: mappedRole
+              };
+              localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
             }
           }
         } catch (err) {
@@ -208,8 +235,6 @@ export default function App({ initialTab = 'home' }: AppProps) {
       ...user,
       role: role
     };
-    localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
-    setCurrentUser(sessionUser);
     
     let mappedRole: UserRole = 'Parent';
     if (role === 'Doctor') mappedRole = 'Doctor';
@@ -217,18 +242,24 @@ export default function App({ initialTab = 'home' }: AppProps) {
     setActiveRole(mappedRole);
 
     if (user.child) {
-      setActiveChild(formatChildProfile(user.child));
+      const formattedChild = formatChildProfile(user.child);
+      setActiveChild(formattedChild);
+      sessionUser.child = formattedChild;
     } else if (role === 'Parent') {
       try {
         const patientsRes = await getPatients();
         if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
-          setActiveChild(formatChildProfile(patientsRes.data[0]));
+          const formattedChild = formatChildProfile(patientsRes.data[0]);
+          setActiveChild(formattedChild);
+          sessionUser.child = formattedChild;
         }
       } catch (err) {
         console.error('Failed to fetch patient on login:', err);
       }
     }
 
+    localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
+    setCurrentUser(sessionUser);
     setCurrentTab('portal');
   };
 
