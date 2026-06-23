@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Smile, Brain, Target, Star, Trophy, Users, LogOut, Heart, 
   Sparkles, Activity, Plus, LineChart, FileText, Settings, 
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
-import { getGameProgress, submitGameScore } from '../api';
+import { getGameProgress, submitGameScore, getAIPrediction, getPatients } from '../api';
 import { ResponsiveContainer, LineChart as ReLineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 interface ParentDashboardProps {
@@ -40,6 +40,12 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [logNotes, setLogNotes] = useState('');
   const [logSuccess, setLogSuccess] = useState(false);
 
+  // --- AI Prediction States ---
+  const [activeChildId, setActiveChildId] = useState<string>('');
+  const [loadingPrediction, setLoadingPrediction] = useState<boolean>(false);
+  const [predictionData, setPredictionData] = useState<any>(null);
+  const [predictionError, setPredictionError] = useState<string>('');
+
   // Local state child details
   const child = parentUser.child || {
     name: 'Sami Al-Farsi',
@@ -55,6 +61,43 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     { date: '2026-06-21', mood: 'good', sleep: '8.5 hrs', meds: true, notes: 'Calm evening, positive social interactions.' },
     { date: '2026-06-20', mood: 'neutral', sleep: '7.5 hrs', meds: true, notes: 'Slight restlessness before sleep, settled in 10m.' }
   ]);
+
+  // --- Fetch patients then AI prediction on mount ---
+  useEffect(() => {
+    const loadPrediction = async () => {
+      try {
+        setLoadingPrediction(true);
+        setPredictionError('');
+
+        const patientsRes = await getPatients();
+        const childId =
+          patientsRes?.data?.[0]?._id ||
+          patientsRes?.data?.[0]?.id ||
+          patientsRes?.[0]?._id ||
+          patientsRes?.[0]?.id ||
+          '';
+
+        if (!childId) {
+          setPredictionError('No child profile found. Add a child to see AI insights.');
+          return;
+        }
+
+        setActiveChildId(childId);
+
+        const predRes = await getAIPrediction(childId, language);
+        if (predRes?.data) {
+          setPredictionData(predRes.data);
+        }
+      } catch (err: any) {
+        setPredictionError('AI prediction unavailable right now. Try again later.');
+        console.error('AI prediction error:', err);
+      } finally {
+        setLoadingPrediction(false);
+      }
+    };
+
+    loadPrediction();
+  }, [language]);
 
   const handleAddLog = (e: React.FormEvent) => {
     e.preventDefault();
@@ -341,39 +384,141 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
           </div>
         )}
 
-        {/* VIEW B: CHILD COGNITIVE PROGRESS TRACKING (Recharts Line chart) */}
+        {/* VIEW B: CHILD COGNITIVE PROGRESS + LIVE AI PREDICTION */}
         {activeTab === 'progress' && (
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
-            <div>
-              <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2">
-                {isRtl ? 'مخطط التطور المعرفي ونشاط الانتباه' : 'Child Cognitive Growth & Attention Span chart'}
+          <div className="space-y-6">
+
+            {/* Growth Chart */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2">
+                  {isRtl ? 'مخطط التطور المعرفي ونشاط الانتباه' : 'Child Cognitive Growth & Attention Span chart'}
+                </h4>
+                <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                  Visualizing daily performance indicators synchronized directly from the child play corner.
+                </p>
+              </div>
+
+              <div className="h-64 w-full -ml-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ReLineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#94a3b8" tickLine={false} />
+                    <YAxis tick={{ fontSize: 9 }} stroke="#94a3b8" tickLine={false} domain={[0, 100]} />
+                    <Tooltip contentStyle={{ fontSize: 10, borderRadius: 12, border: '1px solid #e2e8f0' }} />
+                    <Line type="monotone" dataKey="Score" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="Accuracy" stroke="#10b981" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 3 }} />
+                  </ReLineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* ── LIVE AI PREDICTION CARD ── */}
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
+              <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2 flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-sky-500 animate-pulse" />
+                <span>{isRtl ? 'تحليل الذكاء الاصطناعي المباشر' : 'Live AI Behavioral Analysis'}</span>
               </h4>
-              <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                Visualizing daily performance indicators synchronized directly from the child play corner.
-              </p>
+
+              <AnimatePresence mode="wait">
+                {/* Loading */}
+                {loadingPrediction && (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-100"
+                  >
+                    <div className="w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <span className="text-xs font-bold font-mono text-slate-500">
+                      {isRtl ? 'AutiCare AI يحلل سجلات طفلك...' : 'AutiCare AI Analyzing Trends...'}
+                    </span>
+                  </motion.div>
+                )}
+
+                {/* Error */}
+                {!loadingPrediction && predictionError && (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100"
+                  >
+                    <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                    <span className="text-xs font-bold text-amber-700">{predictionError}</span>
+                  </motion.div>
+                )}
+
+                {/* Real AI Result */}
+                {!loadingPrediction && !predictionError && predictionData && (
+                  <motion.div
+                    key="result"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className={`relative rounded-2xl border p-5 overflow-hidden ${
+                      predictionData.riskScore > 50
+                        ? 'bg-rose-50 border-rose-100'
+                        : 'bg-emerald-50 border-emerald-100'
+                    }`}
+                  >
+                    {/* Risk colour bar */}
+                    <div className={`absolute top-0 right-0 w-1.5 h-full rounded-r-2xl ${
+                      predictionData.riskScore > 50 ? 'bg-rose-400' : 'bg-emerald-400'
+                    }`} />
+
+                    {/* Score + label */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
+                          {isRtl ? 'درجة خطر نوبة الانهيار المتوقعة (٧ أيام)' : 'AI PREDICTIVE CRISIS SCORE — 7-DAY WINDOW'}
+                        </p>
+                        <p className={`text-3xl font-black font-mono ${
+                          predictionData.riskScore > 50 ? 'text-rose-500' : 'text-emerald-500'
+                        }`}>
+                          {predictionData.riskScore}
+                          <span className="text-base ml-0.5">%</span>
+                        </p>
+                      </div>
+                      <span className={`text-[9px] font-extrabold uppercase px-3 py-1 rounded-full ${
+                        predictionData.riskScore > 50
+                          ? 'bg-rose-100 text-rose-600'
+                          : 'bg-emerald-100 text-emerald-600'
+                      }`}>
+                        {predictionData.riskScore > 50
+                          ? (isRtl ? 'خطر مرتفع' : 'High Risk')
+                          : (isRtl ? 'مستقر' : 'Stable')}
+                      </span>
+                    </div>
+
+                    {/* AI message */}
+                    <p className="text-xs font-semibold text-slate-600 leading-relaxed mb-3">
+                      {predictionData.message}
+                    </p>
+
+                    {/* Interventions */}
+                    {predictionData.interventions && predictionData.interventions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[9px] font-mono font-black block uppercase tracking-wider text-slate-400">
+                          {isRtl ? 'إجراءات الذكاء الاصطناعي المقترحة:' : 'AI Suggested Actions:'}
+                        </span>
+                        {predictionData.interventions.slice(0, 3).map((item: string, idx: number) => (
+                          <div key={idx} className="flex items-start space-x-2 text-xs font-semibold text-slate-600">
+                            <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${
+                              predictionData.riskScore > 50 ? 'text-rose-400' : 'text-emerald-400'
+                            }`} />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            <div className="h-64 w-full -ml-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <ReLineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#94a3b8" tickLine={false} />
-                  <YAxis tick={{ fontSize: 9 }} stroke="#94a3b8" tickLine={false} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ fontSize: 10, borderRadius: 12, border: '1px solid #e2e8f0' }} />
-                  <Line type="monotone" dataKey="Score" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="Accuracy" stroke="#10b981" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 3 }} />
-                </ReLineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-start space-x-3 text-xs text-slate-500 font-semibold leading-normal">
-              <Sparkles className="w-5 h-5 text-sky-500 flex-shrink-0 mt-0.5" />
-              <p>
-                {isRtl 
-                  ? 'رؤى أوتي كير الذكية: يظهر طفلك دقة مهارات مطابقة بنسبة ٩٢٪ مع ثبات في زمن الاستجابة الحركية. تتكامل هذه النتائج مع استهلاك مكملات الفولات النشطة صباحاً.'
-                  : 'AutiCare Intelligence Insight: Your child shows a 92% memory matching score with stabilized motor response times. Folate coenzyme metabolic markers support this focus stability.'}
-              </p>
-            </div>
           </div>
         )}
 
