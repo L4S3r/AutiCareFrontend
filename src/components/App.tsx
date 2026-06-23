@@ -33,6 +33,32 @@ import Footer from './Footer';
 import Testimonials from './Testimonials';
 import { register, login, getMe, logout, getPatients, createPatient } from '../api';
 
+const formatChildProfile = (dbChild: any) => {
+  if (!dbChild) return null;
+  
+  let level = 'Level 1';
+  if (dbChild.asdLevel === 'level2') level = 'Level 2';
+  else if (dbChild.asdLevel === 'level3') level = 'Level 3';
+  else if (dbChild.asdLevel) {
+    const cleaned = dbChild.asdLevel.replace(/\s+/g, '').toLowerCase();
+    if (cleaned === 'level2') level = 'Level 2';
+    else if (cleaned === 'level3') level = 'Level 3';
+  } else if (dbChild.level) {
+    level = dbChild.level;
+  }
+
+  const formattedName = dbChild.name ? dbChild.name.trim().replace(/\s+/g, '_').toLowerCase() : 'child';
+  const childUsername = dbChild.username || `${formattedName}_user`;
+
+  return {
+    ...dbChild,
+    name: dbChild.name,
+    username: childUsername,
+    age: dbChild.calculatedAge || dbChild.age || '6',
+    level: level,
+    gender: dbChild.gender ? (dbChild.gender.charAt(0).toUpperCase() + dbChild.gender.slice(1)) : 'Male'
+  };
+};
 
 interface AppProps {
   initialTab?: string;
@@ -138,7 +164,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
             // Load child profile details
             const patientsRes = await getPatients();
             if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
-              setActiveChild(patientsRes.data[0]);
+              setActiveChild(formatChildProfile(patientsRes.data[0]));
             }
           }
         } catch (err) {
@@ -177,7 +203,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleLoginSuccess = (role: 'Parent' | 'Child' | 'Doctor' | 'Therapist', user: any) => {
+  const handleLoginSuccess = async (role: 'Parent' | 'Child' | 'Doctor' | 'Therapist', user: any) => {
     const sessionUser = {
       ...user,
       role: role
@@ -191,7 +217,16 @@ export default function App({ initialTab = 'home' }: AppProps) {
     setActiveRole(mappedRole);
 
     if (user.child) {
-      setActiveChild(user.child);
+      setActiveChild(formatChildProfile(user.child));
+    } else if (role === 'Parent') {
+      try {
+        const patientsRes = await getPatients();
+        if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
+          setActiveChild(formatChildProfile(patientsRes.data[0]));
+        }
+      } catch (err) {
+        console.error('Failed to fetch patient on login:', err);
+      }
     }
 
     setCurrentTab('portal');

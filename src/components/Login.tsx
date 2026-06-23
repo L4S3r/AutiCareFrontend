@@ -114,8 +114,8 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
       // 1. Check if email is already registered
       const checkRes = await checkEmail(email);
 
-      if (checkRes.exists) {
-        // 2. Existing user - proceed with login
+      if (checkRes.exists && (checkRes.role !== 'parent' || checkRes.hasChild)) {
+        // 2. Existing user (with child profile if parent) - proceed with login
         const loginRes = await firebaseLogin({ idToken });
         if (loginRes.success && loginRes.user) {
           let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
@@ -125,7 +125,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
           onSuccess(finalRole, loginRes.user);
         }
       } else {
-        // 3. New user
+        // 3. New user or parent lacking a child profile
         if (selectedRole !== 'Parent') {
           // Clinicians must use standard registration because they need to upload licenses/CVs
           throw new Error(isRtl 
