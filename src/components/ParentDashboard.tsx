@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
-import { getGameProgress, submitGameScore, getAIPrediction, getPatients } from '../api';
+import { getGameProgress, submitGameScore, getAIPrediction, getPatients, getBehaviorLogs, createBehaviorLog } from '../api';
 import { ResponsiveContainer, LineChart as ReLineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 interface ParentDashboardProps {
@@ -62,6 +62,27 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     { date: '2026-06-20', mood: 'neutral', sleep: '7.5 hrs', meds: true, notes: 'Slight restlessness before sleep, settled in 10m.' }
   ]);
 
+  const loadLogs = async (childId: string) => {
+    try {
+      const logsRes = await getBehaviorLogs(childId);
+      if (logsRes.success && logsRes.data && logsRes.data.length > 0) {
+        const mapped = logsRes.data.map((l: any) => ({
+          date: l.date ? l.date.split('T')[0] : '',
+          mood: l.mood === 'very_happy' ? 'excellent' :
+                l.mood === 'happy' ? 'good' :
+                l.mood === 'neutral' ? 'neutral' :
+                l.mood === 'anxious' || l.mood === 'sad' || l.mood === 'very_sad' ? 'unsettled' : 'distressed',
+          sleep: `${l.sleepHours || 0} hrs`,
+          meds: l.medication && l.medication[0] ? l.medication[0].taken : true,
+          notes: l.notes || ''
+        }));
+        setLogs(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching logs:', err);
+    }
+  };
+
   // --- Fetch patients then AI prediction on mount ---
   useEffect(() => {
     const loadPrediction = async () => {
@@ -84,6 +105,9 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
         setActiveChildId(childId);
 
+        // Load logs from MongoDB
+        await loadLogs(childId);
+
         const predRes = await getAIPrediction(childId, language);
         if (predRes?.data) {
           setPredictionData(predRes.data);
@@ -99,20 +123,50 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     loadPrediction();
   }, [language]);
 
-  const handleAddLog = (e: React.FormEvent) => {
+  const handleAddLog = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newLog = {
-      date: new Date().toISOString().split('T')[0],
-      mood: logMood,
-      sleep: `${logSleep} hrs`,
-      meds: logMeds,
-      notes: logNotes
-    };
-    setLogs([newLog, ...logs]);
-    setLogSuccess(true);
-    setLogNotes('');
-    setTimeout(() => setLogSuccess(false), 3000);
+    if (!activeChildId) return;
+
+    try {
+      let dbMood = 'neutral';
+      if (logMood === 'excellent') dbMood = 'very_happy';
+      else if (logMood === 'good') dbMood = 'happy';
+      else if (logMood === 'unsettled') dbMood = 'anxious';
+      else if (logMood === 'distressed') dbMood = 'angry';
+
+      const logData = {
+        childId: activeChildId,
+        date: new Date(),
+        mood: dbMood,
+        sleepHours: Number(logSleep),
+        sleepQuality: Number(logSleep) >= 8 ? 'excellent' : Number(logSleep) >= 6 ? 'good' : 'poor',
+        meltdownSeverity: 'none',
+        meltdowns: 0,
+        medication: [{ name: 'Metafolin', taken: logMeds }],
+        notes: logNotes || 'Parent logged daily behavioral stats.',
+      };
+
+      const res = await createBehaviorLog(logData);
+      if (res.success) {
+        setLogSuccess(true);
+        setLogNotes('');
+        await loadLogs(activeChildId);
+        
+        // Refresh AI prediction
+        setLoadingPrediction(true);
+        const predRes = await getAIPrediction(activeChildId, language);
+        if (predRes?.data) {
+          setPredictionData(predRes.data);
+        }
+        setLoadingPrediction(false);
+
+        setTimeout(() => setLogSuccess(false), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to save behavior log:', err);
+    }
   };
+
 
   // Recharts mock stats
   const chartData = [
