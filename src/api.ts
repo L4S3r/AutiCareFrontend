@@ -63,6 +63,13 @@ export async function firebaseLogin(data: any) {
   return res;
 }
 
+export async function checkEmail(email: string) {
+  return request('/auth/check-email', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function getMe() {
   return request('/auth/me');
 }

@@ -144,6 +144,83 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
   const [showChildPassword, setShowChildPassword] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const strengthT = {
+    en: {
+      strengthLabel: 'Password Strength',
+      weak: 'Weak',
+      fair: 'Fair',
+      good: 'Good',
+      strong: 'Strong',
+      reqLength: 'At least 8 characters',
+      reqUpper: 'At least one uppercase letter (A-Z)',
+      reqLower: 'At least one lowercase letter (a-z)',
+      reqNumber: 'At least one number (0-9)',
+      reqSpecial: 'At least one special character (@$!%*?&)',
+      reqNoUsername: 'Cannot contain username (email prefix)',
+      commonPasswordError: 'This password is too common or weak. Please choose a stronger password.',
+    },
+    ar: {
+      strengthLabel: 'قوة كلمة المرور',
+      weak: 'ضعيفة',
+      fair: 'مقبولة',
+      good: 'جيدة',
+      strong: 'قوية جداً',
+      reqLength: '8 أحرف على الأقل',
+      reqUpper: 'حرف كبير واحد على الأقل (A-Z)',
+      reqLower: 'حرف صغير واحد على الأقل (a-z)',
+      reqNumber: 'رقم واحد على الأقل (0-9)',
+      reqSpecial: 'رمز خاص واحد على الأقل (@$!%*?&)',
+      reqNoUsername: 'يجب ألا تحتوي على اسم المستخدم (جزء البريد الإلكتروني)',
+      commonPasswordError: 'كلمة المرور هذه شائعة أو ضعيفة جداً. يرجى اختيار كلمة مرور أقوى.',
+    }
+  }[language] || {
+    strengthLabel: 'Password Strength',
+    weak: 'Weak',
+    fair: 'Fair',
+    good: 'Good',
+    strong: 'Strong',
+    reqLength: 'At least 8 characters',
+    reqUpper: 'At least one uppercase letter (A-Z)',
+    reqLower: 'At least one lowercase letter (a-z)',
+    reqNumber: 'At least one number (0-9)',
+    reqSpecial: 'At least one special character (@$!%*?&)',
+    reqNoUsername: 'Cannot contain username (email prefix)',
+    commonPasswordError: 'This password is too common or weak. Please choose a stronger password.',
+  };
+
+  const getPasswordStrength = (pass: string) => {
+    let score = 0;
+    const emailPrefix = email ? email.split('@')[0].toLowerCase().trim() : '';
+    const containsUsername = emailPrefix && emailPrefix.length >= 3 && pass.toLowerCase().includes(emailPrefix);
+
+    const checks = {
+      length: pass.length >= 8,
+      upper: /[A-Z]/.test(pass),
+      lower: /[a-z]/.test(pass),
+      number: /[0-9]/.test(pass),
+      special: /[^A-Za-z0-9]/.test(pass),
+      noUsername: !containsUsername,
+    };
+
+    if (checks.length) score += 1;
+    if (checks.upper) score += 0.75;
+    if (checks.lower) score += 0.75;
+    if (checks.number) score += 0.75;
+    if (checks.special) score += 0.75;
+
+    const finalScore = Math.min(4, Math.floor(score));
+    const isCommon = ['12345678', 'password', '123456789', 'auticare123', 'auticare', 'password123'].includes(pass.toLowerCase());
+
+    return {
+      score: (isCommon || containsUsername) ? 0 : finalScore,
+      checks,
+      isCommon,
+      containsUsername,
+    };
+  };
+
+  const strengthInfo = getPasswordStrength(password);
+
   // Form selections and items
   const genderOptions = [
     { value: 'Male', label: isRtl ? 'ذكر' : 'Male' },
@@ -210,8 +287,21 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
       return;
     }
 
-    if (password.length < 8) {
-      setError(isRtl ? 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل' : 'Password must be at least 8 characters');
+    const sInfo = getPasswordStrength(password);
+    if (sInfo.isCommon) {
+      setError(strengthT.commonPasswordError);
+      return;
+    }
+    if (sInfo.containsUsername) {
+      setError(isRtl 
+        ? 'لا يمكن أن تحتوي كلمة المرور على اسم المستخدم أو جزء من بريدك الإلكتروني.' 
+        : 'Password cannot contain your username or email prefix.');
+      return;
+    }
+    if (sInfo.score < 3) {
+      setError(isRtl 
+        ? 'يرجى اختيار كلمة مرور أقوى تلبي معظم متطلبات الحماية.' 
+        : 'Please choose a stronger password that meets most security requirements.');
       return;
     }
 
@@ -563,6 +653,84 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                     />
                   </div>
                 </div>
+
+                {/* Password Strength Meter */}
+                {password.length > 0 && (
+                  <div className="space-y-2 p-4 bg-slate-50 border border-slate-200/60 rounded-2xl text-left">
+                    <div className="flex items-center justify-between text-[11px] font-black uppercase text-slate-500">
+                      <span>{strengthT.strengthLabel}</span>
+                       <span className={
+                         strengthInfo.score === 4 ? 'text-emerald-500' :
+                         strengthInfo.score === 3 ? 'text-teal-500' :
+                         strengthInfo.score === 2 ? 'text-amber-500' :
+                         'text-rose-500'
+                       }>
+                         {strengthInfo.isCommon ? strengthT.weak + ' (Common)' :
+                          strengthInfo.score === 4 ? strengthT.strong :
+                          strengthInfo.score === 3 ? strengthT.good :
+                          strengthInfo.score === 2 ? strengthT.fair :
+                          strengthT.weak}
+                       </span>
+                    </div>
+
+                    {/* 4-bar indicator */}
+                    <div className="grid grid-cols-4 gap-1.5 h-1.5">
+                      {[1, 2, 3, 4].map((stepVal) => (
+                        <div
+                          key={stepVal}
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            stepVal <= strengthInfo.score
+                              ? (strengthInfo.score === 4 ? 'bg-emerald-500' :
+                                 strengthInfo.score === 3 ? 'bg-teal-500' :
+                                  strengthInfo.score === 2 ? 'bg-amber-500' :
+                                 'bg-rose-500')
+                              : 'bg-slate-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Checklist items */}
+                    <div className={`space-y-1 pt-1 text-[10px] font-bold text-slate-500`}>
+                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.length ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span>{strengthT.reqLength}</span>
+                      </div>
+                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.upper ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span>{strengthT.reqUpper}</span>
+                      </div>
+                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.lower ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span>{strengthT.reqLower}</span>
+                      </div>
+                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.number ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span>{strengthT.reqNumber}</span>
+                      </div>
+                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.special ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span>{strengthT.reqSpecial}</span>
+                      </div>
+                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.noUsername ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                        <span>{strengthT.reqNoUsername}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Additional Clinician Personal Info */}
                 {selectedRole !== 'Parent' && (

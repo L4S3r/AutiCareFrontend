@@ -7,9 +7,9 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
-import { login, firebaseLogin } from '../api';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { login, firebaseLogin, checkEmail } from '../api';
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../config/firebase';
 
 interface LoginProps {
   language: Language;
@@ -21,8 +21,8 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
   const t = TRANSLATIONS[language];
   const isRtl = language === 'ar';
 
-  // 1: Role Selection, 2: Login Form, 3: Account Pending Verification
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  // 1: Role Selection, 2: Login Form, 3: Account Pending Verification, 4: Forgot Password Form
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1); // 5: Google Child Setup Screen
   const [selectedRole, setSelectedRole] = useState<'Parent' | 'Doctor' | 'Therapist' | null>(null);
 
   // Form Fields
@@ -32,6 +32,184 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+
+  // Google Sign-In State
+  const [googleUser, setGoogleUser] = useState<{ email: string; displayName: string; idToken: string } | null>(null);
+  const [childName, setChildName] = useState('');
+  const [childAge, setChildAge] = useState('');
+  const [childGender, setChildGender] = useState('');
+  const [diagnosisLevel, setDiagnosisLevel] = useState('');
+
+  const forgotT = {
+    en: {
+      title: 'Reset Password',
+      desc: 'Enter your registered email address, and we will send you a recovery link.',
+      emailLabel: 'Email Address',
+      emailPlaceholder: 'john@example.com',
+      sendBtn: 'Send Recovery Link',
+      sendingBtn: 'Sending Link...',
+      backBtn: 'Back to Login',
+      successMsg: 'A password recovery link has been sent to your email! Please check your inbox.',
+      errorInvalidEmail: 'Please enter a valid email address.',
+    },
+    ar: {
+      title: 'استعادة كلمة المرور',
+      desc: 'أدخل بريدك الإلكتروني المسجل وسنرسل لك رابط استعادة كلمة المرور.',
+      emailLabel: 'البريد الإلكتروني',
+      emailPlaceholder: 'john@example.com',
+      sendBtn: 'إرسال رابط الاستعادة',
+      sendingBtn: 'جاري الإرسال...',
+      backBtn: 'عودة لتسجيل الدخول',
+      successMsg: 'تم إرسال رابط استعادة كلمة المرور إلى بريدك الإلكتروني! يرجى مراجعة صندوق الوارد.',
+      errorInvalidEmail: 'يرجى إدخال بريد إلكتروني صحيح.',
+    }
+  }[language] || {
+    title: 'Reset Password',
+    desc: 'Enter your registered email address, and we will send you a recovery link.',
+    emailLabel: 'Email Address',
+    emailPlaceholder: 'john@example.com',
+    sendBtn: 'Send Recovery Link',
+    sendingBtn: 'Sending Link...',
+    backBtn: 'Back to Login',
+    successMsg: 'A password recovery link has been sent to your email! Please check your inbox.',
+    errorInvalidEmail: 'Please enter a valid email address.',
+  };
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!resetEmail.trim() || !resetEmail.includes('@')) {
+      setError(forgotT.errorInvalidEmail);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail.trim().toLowerCase());
+      setResetSent(true);
+    } catch (fbErr: any) {
+      if (fbErr.code === 'auth/user-not-found') {
+        setError(isRtl ? 'البريد الإلكتروني غير مسجل لدينا.' : 'No user found with this email address.');
+      } else {
+        setError(fbErr.message || (isRtl ? 'فشل إرسال رابط الاستعادة. يرجى المحاولة لاحقاً.' : 'Failed to send recovery link. Please try again.'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      const idToken = await user.getIdToken();
+      const email = user.email || '';
+      const displayName = user.displayName || '';
+
+      // 1. Check if email is already registered
+      const checkRes = await checkEmail(email);
+
+      if (checkRes.exists) {
+        // 2. Existing user - proceed with login
+        const loginRes = await firebaseLogin({ idToken });
+        if (loginRes.success && loginRes.user) {
+          let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
+          if (loginRes.user.role === 'doctor') finalRole = 'Doctor';
+          else if (loginRes.user.role === 'therapist') finalRole = 'Therapist';
+          
+          onSuccess(finalRole, loginRes.user);
+        }
+      } else {
+        // 3. New user
+        if (selectedRole !== 'Parent') {
+          // Clinicians must use standard registration because they need to upload licenses/CVs
+          throw new Error(isRtl 
+            ? 'حساب الطبيب/المعالج غير مسجل. يرجى إنشاء حساب جديد أولاً من صفحة التسجيل.' 
+            : 'Clinician account not found. Please register first using the Sign Up page.');
+        }
+
+        // Save Google info and transition to Step 5 (Simplified Child Setup)
+        setGoogleUser({ email, displayName, idToken });
+        setStep(5);
+      }
+    } catch (err: any) {
+      console.error('Google Sign-In error:', err);
+      setError(err.message || (isRtl ? 'فشل تسجيل الدخول باستخدام Google.' : 'Google Sign-In failed. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleChildSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!googleUser) return;
+    
+    if (!childName.trim() || !childAge.trim() || !childGender || !diagnosisLevel) {
+      setError(isRtl ? 'برجاء ملء جميع الحقول المطلوبة للطفل' : 'Please fill in all required fields for the child');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Register Parent + Child in MongoDB
+      const res = await firebaseLogin({
+        idToken: googleUser.idToken,
+        name: googleUser.displayName,
+        role: 'parent',
+        childName,
+        childAge,
+        childGender,
+        diagnosisLevel
+      });
+
+      if (res.success && res.user) {
+        // Sync custom local mock storage
+        const usersJson = localStorage.getItem('auticare_mock_db');
+        const mockDB = usersJson ? JSON.parse(usersJson) : { users: [] };
+        
+        // Prevent duplicate registration in local mock storage
+        const userExists = mockDB.users.some((u: any) => u.email.toLowerCase() === googleUser.email.toLowerCase());
+        if (!userExists) {
+          const formattedChildName = childName.trim().replace(/\s+/g, '_').toLowerCase();
+          const randomNum = Math.floor(100 + Math.random() * 900);
+          const childUsername = `${formattedChildName}_${randomNum}`;
+          const childPass = `child_${Math.floor(100000 + Math.random() * 900000)}`;
+
+          const newUser = {
+            name: googleUser.displayName,
+            email: googleUser.email.toLowerCase(),
+            password: `fb_${googleUser.idToken.slice(0, 10)}`,
+            role: 'Parent',
+            child: {
+              name: childName,
+              username: childUsername,
+              password: childPass,
+              age: childAge,
+              level: diagnosisLevel,
+              gender: childGender
+            },
+            status: 'approved'
+          };
+          mockDB.users.push(newUser);
+          localStorage.setItem('auticare_mock_db', JSON.stringify(mockDB));
+        }
+
+        onSuccess('Parent', res.user);
+      }
+    } catch (err: any) {
+      console.error('Child registration error:', err);
+      setError(err.message || (isRtl ? 'فشل إكمال التسجيل.' : 'Failed to complete registration.'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNextStep = () => {
     if (!selectedRole) {
@@ -195,6 +373,65 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
       setLoading(false);
     }
   };
+
+  const googleSetupT = {
+    en: {
+      title: 'Complete Child Setup',
+      desc: "Please provide your child's basic details to complete your registration.",
+      childName: "Child's Name",
+      childNamePlaceholder: "Enter child's full name",
+      childAge: "Child's Age",
+      childAgePlaceholder: 'e.g. 6',
+      gender: "Child's Gender",
+      genderPlaceholder: 'Select gender',
+      asdLevel: 'Diagnosis Level',
+      asdLevelPlaceholder: 'Select level',
+      submitBtn: 'Complete Registration',
+      submittingBtn: 'Registering...',
+      backBtn: 'Cancel',
+    },
+    ar: {
+      title: 'إكمال إعداد ملف الطفل',
+      desc: 'يرجى تزويدنا بالمعلومات الأساسية للطفل لإتمام عملية التسجيل.',
+      childName: 'اسم الطفل',
+      childNamePlaceholder: 'أدخل اسم الطفل بالكامل',
+      childAge: 'عمر الطفل',
+      childAgePlaceholder: 'مثال: 6',
+      gender: 'جنس الطفل',
+      genderPlaceholder: 'اختر الجنس',
+      asdLevel: 'مستوى التشخيص',
+      asdLevelPlaceholder: 'اختر المستوى',
+      submitBtn: 'إكمال التسجيل',
+      submittingBtn: 'جاري التسجيل...',
+      backBtn: 'إلغاء',
+    }
+  }[language] || {
+    title: 'Complete Child Setup',
+    desc: "Please provide your child's basic details to complete your registration.",
+    childName: "Child's Name",
+    childNamePlaceholder: "Enter child's full name",
+    childAge: "Child's Age",
+    childAgePlaceholder: 'e.g. 6',
+    gender: "Child's Gender",
+    genderPlaceholder: 'Select gender',
+    asdLevel: 'Diagnosis Level',
+    asdLevelPlaceholder: 'Select level',
+    submitBtn: 'Complete Registration',
+    submittingBtn: 'Registering...',
+    backBtn: 'Cancel',
+  };
+
+  const childGenderOptions = [
+    { value: 'Male', label: isRtl ? 'ذكر' : 'Male' },
+    { value: 'Female', label: isRtl ? 'أنثى' : 'Female' },
+    { value: 'Other', label: isRtl ? 'آخر' : 'Other' }
+  ];
+
+  const childDiagLevels = [
+    { value: 'Level 1', label: isRtl ? 'مستوى 1 - خفيف' : 'Level 1 - Mild' },
+    { value: 'Level 2', label: isRtl ? 'مستوى 2 - متوسط' : 'Level 2 - Moderate' },
+    { value: 'Level 3', label: isRtl ? 'مستوى 3 - شديد' : 'Level 3 - Severe' }
+  ];
 
   return (
     <div className="max-w-4xl mx-auto my-12 px-4 select-none">
@@ -401,7 +638,12 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
                 
                 <button
                   type="button"
-                  onClick={() => alert(isRtl ? 'سيرسل نظام العيادة رابط استعادة كلمة المرور لبريدك.' : 'A password recovery link will be sent to your registered email.')}
+                  onClick={() => {
+                    setError('');
+                    setResetEmail(emailOrUsername.includes('@') ? emailOrUsername : '');
+                    setResetSent(false);
+                    setStep(4);
+                  }}
                   className="text-sky-600 hover:underline hover:text-sky-700"
                 >
                   {t.authForgot}
@@ -422,6 +664,32 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
                     <ArrowRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
                   </>
                 )}
+              </button>
+
+              {/* OR divider */}
+              <div className="relative flex items-center justify-center my-5">
+                <div className="border-t border-slate-200 w-full" />
+                <span className="absolute bg-white px-3 text-[10px] font-black uppercase text-slate-400">
+                  {isRtl ? 'أو' : 'OR'}
+                </span>
+              </div>
+
+              {/* Google Button */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className={`w-full py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center space-x-2 ${isRtl ? 'space-x-reverse' : ''} cursor-pointer shadow-sm hover:shadow`}
+              >
+                <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#ea4335"
+                    d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.513 0-6.386-2.87-6.386-6.386 0-3.513 2.873-6.386 6.386-6.386 1.625 0 3.08.618 4.2 1.629l3.076-3.076C19.34 2.385 15.98 1 12.24 1 6.033 1 12.24 1.033 12.24 1.033S6.033 1 12.24 1c-6.207 0-11.24 5.033-11.24 11.24s5.033 11.24 11.24 11.24c5.897 0 10.867-4.247 10.867-11.24 0-.668-.063-1.31-.183-1.955H12.24z"
+                  />
+                </svg>
+                <span>
+                  {isRtl ? 'تسجيل الدخول باستخدام Google' : 'Sign in with Google'}
+                </span>
               </button>
 
             </form>
@@ -480,6 +748,242 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
                 {t.authBackHome}
               </button>
             </div>
+          </motion.div>
+        )}
+
+        {/* STEP 4: FORGOT PASSWORD FORM */}
+        {step === 4 && (
+          <motion.div
+            key="forgot-password-form"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="max-w-md mx-auto bg-white rounded-3xl border border-sky-100 shadow-xl p-8 space-y-6"
+          >
+            <div className="text-center space-y-2">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                {forgotT.title}
+              </h3>
+              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                {forgotT.desc}
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold text-left">
+                {error}
+              </div>
+            )}
+
+            {resetSent ? (
+              <div className="space-y-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6 animate-bounce" />
+                </div>
+                <p className="text-xs font-bold text-slate-600 leading-relaxed">
+                  {forgotT.successMsg}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep(2);
+                    setError('');
+                  }}
+                  className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  {forgotT.backBtn}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                
+                {/* Email Address */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-500 block">
+                    {forgotT.emailLabel}
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className={`absolute ${isRtl ? 'right-4' : 'left-4'} text-slate-400`}>
+                      <Mail className="w-4 h-4" />
+                    </span>
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder={forgotT.emailPlaceholder}
+                      className={`w-full py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold`}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Send Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-sky-500/20 cursor-pointer flex items-center justify-center space-x-2"
+                >
+                  {loading ? (
+                    <span>{forgotT.sendingBtn}</span>
+                  ) : (
+                    <>
+                      <span>{forgotT.sendBtn}</span>
+                      <ArrowRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep(2);
+                    setError('');
+                  }}
+                  className="w-full py-3 border border-slate-200 hover:bg-slate-50 text-slate-500 font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center font-bold"
+                >
+                  {forgotT.backBtn}
+                </button>
+
+              </form>
+            )}
+          </motion.div>
+        )}
+
+        {/* STEP 5: SIMPLIFIED CHILD SETUP SCREEN FOR GOOGLE SIGNUPS */}
+        {step === 5 && (
+          <motion.div
+            key="google-child-setup"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="max-w-md mx-auto bg-white rounded-3xl border border-sky-100 shadow-xl p-8 space-y-6"
+          >
+            <div className="text-center space-y-2">
+              <div className="relative w-12 h-12 flex items-center justify-center mx-auto mb-3">
+                <div className="absolute top-0 left-0 w-8 h-8 rounded-full bg-sky-400/80 mix-blend-multiply filter blur-[0.5px]" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-blue-500/85 mix-blend-multiply filter blur-[0.5px]" />
+                <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-cyan-300/70 mix-blend-multiply filter blur-[0.5px]" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                {googleSetupT.title}
+              </h3>
+              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                {googleSetupT.desc}
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold text-left font-semibold">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleGoogleChildSubmit} className="space-y-4 text-left">
+              
+              {/* Child Name */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-500 block">
+                  {googleSetupT.childName}
+                </label>
+                <div className="relative flex items-center">
+                  <span className={`absolute ${isRtl ? 'right-4' : 'left-4'} text-slate-400`}>
+                    <User className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={childName}
+                    onChange={(e) => setChildName(e.target.value)}
+                    placeholder={googleSetupT.childNamePlaceholder}
+                    className={`w-full py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold`}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Child Age */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-500 block">
+                    {googleSetupT.childAge}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="18"
+                    value={childAge}
+                    onChange={(e) => setChildAge(e.target.value)}
+                    placeholder={googleSetupT.childAgePlaceholder}
+                    className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                    required
+                  />
+                </div>
+
+                {/* Child Gender */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-500 block">
+                    {googleSetupT.gender}
+                  </label>
+                  <select
+                    value={childGender}
+                    onChange={(e) => setChildGender(e.target.value)}
+                    className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                    required
+                  >
+                    <option value="">{googleSetupT.genderPlaceholder}</option>
+                    {childGenderOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Diagnosis Level */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-500 block">
+                  {googleSetupT.asdLevel}
+                </label>
+                <select
+                  value={diagnosisLevel}
+                  onChange={(e) => setDiagnosisLevel(e.target.value)}
+                  className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                  required
+                >
+                  <option value="">{googleSetupT.asdLevelPlaceholder}</option>
+                  {childDiagLevels.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-sky-500/20 cursor-pointer flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <span>{googleSetupT.submittingBtn}</span>
+                ) : (
+                  <>
+                    <span>{googleSetupT.submitBtn}</span>
+                    <ArrowRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(2);
+                  setGoogleUser(null);
+                  setError('');
+                }}
+                className="w-full py-3 border border-slate-200 hover:bg-slate-50 text-slate-500 font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer text-center font-bold"
+              >
+                {googleSetupT.backBtn}
+              </button>
+
+            </form>
           </motion.div>
         )}
 

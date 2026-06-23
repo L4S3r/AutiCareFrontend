@@ -49,12 +49,6 @@ export default function Footer({ language, setCurrentTab }: FooterProps) {
       { href: "#", label: t.footerPricing },
       { href: "#", label: t.footerAboutUs },
     ],
-    [t.footerSolutions]: [
-      { href: "#", label: t.footerForDoctors },
-      { href: "#", label: t.footerForTherapists },
-      { href: "#", label: t.footerForParents },
-      { href: "#", label: t.footerForHospitals },
-    ],
     [t.footerLegal]: [
       { href: "#", label: t.footerTerms },
       { href: "#", label: t.footerPrivacy },
@@ -108,13 +102,25 @@ export default function Footer({ language, setCurrentTab }: FooterProps) {
           element.scrollIntoView({ behavior: "smooth" });
         }
       }, 150);
+    } else if (label === t.footerTerms) {
+      e.preventDefault();
+      setCurrentTab("legal-terms");
+    } else if (label === t.footerPrivacy) {
+      e.preventDefault();
+      setCurrentTab("legal-privacy");
+    } else if (label === t.footerCookieNotice) {
+      e.preventDefault();
+      setCurrentTab("legal-cookie");
+    } else if (label === t.footerHIPAA) {
+      e.preventDefault();
+      setCurrentTab("legal-hipaa");
     }
   };
 
   return (
     <footer className="bg-slate-50 border-t border-slate-200/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="lg:col-span-2 flex flex-col justify-between">
             <div>
@@ -169,16 +175,23 @@ export default function Footer({ language, setCurrentTab }: FooterProps) {
         <div className="mt-12 pt-6 border-t border-slate-200/50 flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Social icons at bottom-left */}
           <div className={`flex gap-3 ${isRtl ? "flex-row-reverse" : "flex-row"}`}>
-            {["facebook", "instagram", "linkedin", "youtube"].map((s) => (
-              <a
-                key={s}
-                href="#"
-                className="text-slate-500 hover:text-sky-500 transition-colors duration-200 flex items-center justify-center p-1"
-                aria-label={s}
-              >
-                <SocialIcon type={s} />
-              </a>
-            ))}
+            {["facebook", "instagram", "linkedin", "youtube"].map((s) => {
+              const hrefs: Record<string, string> = {
+                instagram: "https://www.instagram.com/auticare.ai/",
+              };
+              return (
+                <a
+                  key={s}
+                  href={hrefs[s] || "#"}
+                  target={hrefs[s] ? "_blank" : undefined}
+                  rel={hrefs[s] ? "noopener noreferrer" : undefined}
+                  className="text-slate-500 hover:text-sky-500 transition-colors duration-200 flex items-center justify-center p-1"
+                  aria-label={s}
+                >
+                  <SocialIcon type={s} />
+                </a>
+              );
+            })}
           </div>
           <p className="text-[10px] font-bold text-slate-400 font-mono tracking-tight">{t.footerRights}</p>
         </div>

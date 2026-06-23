@@ -23,6 +23,7 @@ import DevelopmentGames from './DevelopmentGames';
 import SecurityCompliance from './SecurityCompliance';
 import SignUp from './SignUp';
 import Login from './Login';
+import Legal from './Legal';
 import ChildDashboard from './ChildDashboard';
 import ParentDashboard from './ParentDashboard';
 import DoctorDashboard from './DoctorDashboard';
@@ -43,8 +44,32 @@ export default function App({ initialTab = 'home' }: AppProps) {
   const t = TRANSLATIONS[language];
   const isRtl = language === 'ar';
 
-  // Primary routing: 'home' | 'features' | 'pricing' | 'contact' | 'portal'
+  // Primary routing: 'home' | 'features' | 'pricing' | 'contact' | 'portal' | 'legal'
   const [currentTab, setCurrentTab] = useState<string>(initialTab);
+  const [activeLegalTab, setActiveLegalTab] = useState<'terms' | 'privacy' | 'cookie' | 'hipaa'>('privacy');
+
+  const handleSetTab = (tab: string) => {
+    if (tab.startsWith('legal-')) {
+      const doc = tab.split('-')[1] as 'terms' | 'privacy' | 'cookie' | 'hipaa';
+      setActiveLegalTab(doc);
+      setCurrentTab('legal');
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      setCurrentTab(tab);
+      if (tab !== 'portal') {
+        setTimeout(() => {
+          const element = document.getElementById(`${tab}-section`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, 100);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+  };
 
   // User Signup registration flow states
   const [signupData, setSignupData] = useState<{ name: string; email: string; password?: string; info: string } | null>(null);
@@ -237,22 +262,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
         language={language}
         setLanguage={setLanguage}
         currentTab={currentTab}
-        setCurrentTab={(tab) => {
-          setCurrentTab(tab);
-          // Auto-scroll logic for landing anchors
-          if (tab !== 'portal') {
-            setTimeout(() => {
-              const element = document.getElementById(`${tab}-section`);
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              } else {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-            }, 100);
-          } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        }}
+        setCurrentTab={handleSetTab}
         onOpenPortal={handleOpenPortal}
         currentUser={currentUser}
         onLogout={handleLogout}
@@ -277,6 +287,12 @@ export default function App({ initialTab = 'home' }: AppProps) {
                 handleLoginSuccess(role, user);
               }}
               onNavigateToSignUp={() => setCurrentTab('signup')}
+            />
+          ) : currentTab === 'legal' ? (
+            <Legal
+              language={language}
+              initialDoc={activeLegalTab}
+              onBack={() => setCurrentTab('home')}
             />
           ) : currentTab !== 'portal' ? (
             <motion.div
@@ -367,22 +383,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
       {/* 3. DESIGN COMPLIANT LIGHT FOOTER */}
       <Footer 
         language={language} 
-        setCurrentTab={(tab) => {
-          setCurrentTab(tab);
-          // Auto-scroll logic for landing anchors
-          if (tab !== 'portal') {
-            setTimeout(() => {
-              const element = document.getElementById(`${tab}-section`);
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              } else {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-            }, 100);
-          } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        }}
+        setCurrentTab={handleSetTab}
       />
 
     </div>
