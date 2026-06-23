@@ -178,6 +178,7 @@ export default function Footer({ language, setCurrentTab }: FooterProps) {
             {["facebook", "instagram", "linkedin", "youtube"].map((s) => {
               const hrefs: Record<string, string> = {
                 instagram: "https://www.instagram.com/auticare.ai/",
+                facebook: "https://www.facebook.com/profile.php?id=61591280124719",
               };
               return (
                 <a

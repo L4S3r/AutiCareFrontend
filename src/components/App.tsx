@@ -165,8 +165,6 @@ export default function App({ initialTab = 'home' }: AppProps) {
         try {
           const userRes = await getMe();
           if (userRes.success) {
-            setCurrentUser(userRes.user);
-            
             // Map backend role to UI sandbox role
             let mappedRole: UserRole = 'Parent';
             if (userRes.user.role === 'doctor') mappedRole = 'Doctor';
@@ -186,12 +184,14 @@ export default function App({ initialTab = 'home' }: AppProps) {
                 child: formattedChild
               };
               localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
+              setCurrentUser(sessionUser);
             } else {
               const sessionUser = {
                 ...userRes.user,
                 role: mappedRole
               };
               localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
+              setCurrentUser(sessionUser);
             }
           }
         } catch (err) {
