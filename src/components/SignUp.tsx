@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  User, Mail, Lock, Info, ArrowRight, CheckCircle2, Sparkles, 
+import {
+  User, Mail, Lock, Info, ArrowRight, CheckCircle2, Sparkles,
   Upload, FileText, Clock, Eye, EyeOff, Copy, ChevronRight,
   ShieldCheck, Check, Stethoscope, Users
 } from 'lucide-react';
@@ -19,16 +19,16 @@ interface SignUpProps {
 }
 
 // Reusable Drag and Drop File Uploader Component
-function FileUploader({ 
-  label, 
-  subtext, 
-  onFileSelect, 
-  file 
-}: { 
-  label: string; 
-  subtext: string; 
-  onFileSelect: (file: File | null) => void; 
-  file: File | null 
+function FileUploader({
+  label,
+  subtext,
+  onFileSelect,
+  file
+}: {
+  label: string;
+  subtext: string;
+  onFileSelect: (file: File | null) => void;
+  file: File | null
 }) {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,9 +66,8 @@ function FileUploader({
       onDragLeave={handleDrag}
       onDrop={handleDrop}
       onClick={() => inputRef.current?.click()}
-      className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
-        dragActive ? 'border-sky-400 bg-sky-50/50' : 'border-slate-200 hover:border-sky-300 bg-slate-50'
-      }`}
+      className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${dragActive ? 'border-sky-400 bg-sky-50/50' : 'border-slate-200 hover:border-sky-300 bg-slate-50'
+        }`}
     >
       <input ref={inputRef} type="file" className="hidden" onChange={handleChange} />
       {file ? (
@@ -293,14 +292,14 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
       return;
     }
     if (sInfo.containsUsername) {
-      setError(isRtl 
-        ? 'لا يمكن أن تحتوي كلمة المرور على اسم المستخدم أو جزء من بريدك الإلكتروني.' 
+      setError(isRtl
+        ? 'لا يمكن أن تحتوي كلمة المرور على اسم المستخدم أو جزء من بريدك الإلكتروني.'
         : 'Password cannot contain your username or email prefix.');
       return;
     }
     if (sInfo.score < 3) {
-      setError(isRtl 
-        ? 'يرجى اختيار كلمة مرور أقوى تلبي معظم متطلبات الحماية.' 
+      setError(isRtl
+        ? 'يرجى اختيار كلمة مرور أقوى تلبي معظم متطلبات الحماية.'
         : 'Please choose a stronger password that meets most security requirements.');
       return;
     }
@@ -359,17 +358,12 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
       };
 
       const registerRes = await register(registerData);
-      
+
       // Save client-side mock user details in localStorage
       const usersJson = localStorage.getItem('auticare_mock_db');
       const mockDB = usersJson ? JSON.parse(usersJson) : { users: [] };
 
       // Prevent duplicate registration in local mock storage
-      const userExists = mockDB.users.some((u: any) => u.email.toLowerCase() === email.toLowerCase());
-      if (userExists) {
-        throw new Error(isRtl ? 'البريد الإلكتروني مسجل بالفعل' : 'Email address is already registered');
-      }
-
       if (selectedRole === 'Parent') {
         // Create default child profile credentials
         const formattedChildName = childName.trim().replace(/\s+/g, '_').toLowerCase();
@@ -408,7 +402,13 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
           status: 'approved'
         };
 
-        mockDB.users.push(newUser);
+        const existingIdx = mockDB.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
+        if (existingIdx >= 0) {
+          mockDB.users[existingIdx] = newUser;
+        } else {
+          mockDB.users.push(newUser);
+        }
+
         localStorage.setItem('auticare_mock_db', JSON.stringify(mockDB));
         setGeneratedChildCreds({ username: childUsername, pass: childPass });
         setStep(3); // Go to parent success screen
@@ -428,7 +428,13 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
           status: 'pending' // Clinicians require review
         };
 
-        mockDB.users.push(newUser);
+        const existingIdx = mockDB.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
+        if (existingIdx >= 0) {
+          mockDB.users[existingIdx] = newUser;
+        } else {
+          mockDB.users.push(newUser);
+        }
+
         localStorage.setItem('auticare_mock_db', JSON.stringify(mockDB));
         setStep(4); // Go to clinician pending screen
       }
@@ -442,7 +448,7 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
   return (
     <div className="max-w-4xl mx-auto my-12 px-4 select-none">
       <AnimatePresence mode="wait">
-        
+
         {/* STEP 1: ROLE SELECTION */}
         {step === 1 && (
           <motion.div
@@ -474,15 +480,14 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
 
             {/* Role cards selection grid */}
             <div className="grid grid-cols-1 gap-4">
-              
+
               {/* Parent Option Card */}
               <div
                 onClick={() => setSelectedRole('Parent')}
-                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                  selectedRole === 'Parent'
+                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Parent'
                     ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
                     : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
-                } ${isRtl ? 'space-x-reverse' : ''}`}
+                  } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Parent' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                   <Users className="w-5 h-5" />
@@ -499,11 +504,10 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
               {/* Doctor Option Card */}
               <div
                 onClick={() => setSelectedRole('Doctor')}
-                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                  selectedRole === 'Doctor'
+                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Doctor'
                     ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
                     : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
-                } ${isRtl ? 'space-x-reverse' : ''}`}
+                  } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Doctor' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                   <Stethoscope className="w-5 h-5" />
@@ -520,11 +524,10 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
               {/* Therapist Option Card */}
               <div
                 onClick={() => setSelectedRole('Therapist')}
-                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                  selectedRole === 'Therapist'
+                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Therapist'
                     ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
                     : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
-                } ${isRtl ? 'space-x-reverse' : ''}`}
+                  } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Therapist' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                   <User className="w-5 h-5" />
@@ -583,7 +586,7 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
             )}
 
             <form onSubmit={handleRegisterSubmit} className="space-y-6">
-              
+
               {/* --- SECTION 1: PARENT OR PERSONAL INFO --- */}
               <div className="space-y-4">
                 <h4 className="text-xs font-black uppercase tracking-wider text-sky-800 border-b border-sky-50 pb-2">
@@ -659,18 +662,18 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                   <div className="space-y-2 p-4 bg-slate-50 border border-slate-200/60 rounded-2xl text-left">
                     <div className="flex items-center justify-between text-[11px] font-black uppercase text-slate-500">
                       <span>{strengthT.strengthLabel}</span>
-                       <span className={
-                         strengthInfo.score === 4 ? 'text-emerald-500' :
-                         strengthInfo.score === 3 ? 'text-teal-500' :
-                         strengthInfo.score === 2 ? 'text-amber-500' :
-                         'text-rose-500'
-                       }>
-                         {strengthInfo.isCommon ? strengthT.weak + ' (Common)' :
+                      <span className={
+                        strengthInfo.score === 4 ? 'text-emerald-500' :
+                          strengthInfo.score === 3 ? 'text-teal-500' :
+                            strengthInfo.score === 2 ? 'text-amber-500' :
+                              'text-rose-500'
+                      }>
+                        {strengthInfo.isCommon ? strengthT.weak + ' (Common)' :
                           strengthInfo.score === 4 ? strengthT.strong :
-                          strengthInfo.score === 3 ? strengthT.good :
-                          strengthInfo.score === 2 ? strengthT.fair :
-                          strengthT.weak}
-                       </span>
+                            strengthInfo.score === 3 ? strengthT.good :
+                              strengthInfo.score === 2 ? strengthT.fair :
+                                strengthT.weak}
+                      </span>
                     </div>
 
                     {/* 4-bar indicator */}
@@ -678,14 +681,13 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                       {[1, 2, 3, 4].map((stepVal) => (
                         <div
                           key={stepVal}
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            stepVal <= strengthInfo.score
+                          className={`h-full rounded-full transition-all duration-300 ${stepVal <= strengthInfo.score
                               ? (strengthInfo.score === 4 ? 'bg-emerald-500' :
-                                 strengthInfo.score === 3 ? 'bg-teal-500' :
+                                strengthInfo.score === 3 ? 'bg-teal-500' :
                                   strengthInfo.score === 2 ? 'bg-amber-500' :
-                                 'bg-rose-500')
+                                    'bg-rose-500')
                               : 'bg-slate-200'
-                          }`}
+                            }`}
                         />
                       ))}
                     </div>
@@ -1062,15 +1064,15 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                 {t.authSuccessSub}
               </p>
               <div className="mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold leading-normal text-left">
-                {isRtl 
-                  ? '⚠️ تم إرسال رابط تأكيد إلى بريدك الإلكتروني. يرجى الضغط عليه لتأكيد حسابك قبل تسجيل الدخول.' 
+                {isRtl
+                  ? '⚠️ تم إرسال رابط تأكيد إلى بريدك الإلكتروني. يرجى الضغط عليه لتأكيد حسابك قبل تسجيل الدخول.'
                   : '⚠️ A confirmation link has been sent to your email. Please click it to verify your account before you can log in.'}
               </div>
             </div>
 
             {/* Twin Credentials Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
+
               {/* Parent Credentials Card */}
               <div className="bg-slate-50 border border-slate-200/50 rounded-2xl p-5 text-left space-y-3">
                 <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">
@@ -1098,13 +1100,13 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                   <Sparkles className="w-3 h-3 text-amber-400" />
                   <span>{t.authChildAccountDetails}</span>
                 </span>
-                
+
                 <div className="space-y-1.5 text-xs text-slate-600 font-semibold relative z-10">
                   <div className="flex flex-col">
                     <span className="text-[9px] text-sky-600 uppercase">Child Username</span>
                     <span className="font-extrabold text-slate-800 truncate">{generatedChildCreds.username}</span>
                   </div>
-                  
+
                   <div className="flex flex-col pt-1">
                     <span className="text-[9px] text-sky-600 uppercase">Child Password</span>
                     <div className="flex items-center justify-between bg-white border border-sky-100 rounded-lg px-2 py-1 mt-0.5">
