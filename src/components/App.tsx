@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Dna, LineChart, Users, Lock, Smile, Sparkles, BookOpen, AlertCircle, 
+import {
+  Dna, LineChart, Users, Lock, Smile, Sparkles, BookOpen, AlertCircle,
   ArrowRight, ShieldCheck, HeartPulse, Activity, Languages, Info, CheckCircle2
 } from 'lucide-react';
 
@@ -35,7 +35,7 @@ import { register, login, getMe, logout, getPatients, createPatient } from '../a
 
 const formatChildProfile = (dbChild: any) => {
   if (!dbChild) return null;
-  
+
   let level = 'Level 1';
   if (dbChild.asdLevel === 'level2') level = 'Level 2';
   else if (dbChild.asdLevel === 'level3') level = 'Level 3';
@@ -133,12 +133,12 @@ export default function App({ initialTab = 'home' }: AppProps) {
         try {
           const parsed = JSON.parse(activeMockUser);
           setCurrentUser(parsed);
-          
+
           let mappedRole: UserRole = 'Parent';
           if (parsed.role === 'Doctor') mappedRole = 'Doctor';
           else if (parsed.role === 'Therapist') mappedRole = 'Therapist';
           setActiveRole(mappedRole);
-          
+
           if (parsed.child) {
             setActiveChild(parsed.child);
           } else if (parsed.role === 'Parent') {
@@ -155,7 +155,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
             }
           }
           return;
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // 2. Fall back to backend token
@@ -176,7 +176,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
             if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
               const formattedChild = formatChildProfile(patientsRes.data[0]);
               setActiveChild(formattedChild);
-              
+
               // Also update auticare_active_user to include child info
               const sessionUser = {
                 ...userRes.user,
@@ -235,7 +235,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
       ...user,
       role: role
     };
-    
+
     let mappedRole: UserRole = 'Parent';
     if (role === 'Doctor') mappedRole = 'Doctor';
     else if (role === 'Therapist') mappedRole = 'Therapist';
@@ -292,7 +292,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
         role: role,
         clinic: sData.info
       };
-      
+
       const regRes = await register(regData);
       if (regRes.success) {
         if (role === 'parent') {
@@ -322,22 +322,24 @@ export default function App({ initialTab = 'home' }: AppProps) {
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans select-none antialiased">
-      
-      {/* 1. COMPREHENSIVE HEADER NAVIGATION */}
-      <Navigation
-        language={language}
-        setLanguage={setLanguage}
-        currentTab={currentTab}
-        setCurrentTab={handleSetTab}
-        onOpenPortal={handleOpenPortal}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
+
+      {/* Swapped out unconditional rendering for a clean structural check */}
+      {currentTab !== 'portal' && (
+        <Navigation
+          language={language}
+          setLanguage={setLanguage}
+          currentTab={currentTab}
+          setCurrentTab={handleSetTab}
+          onOpenPortal={handleOpenPortal}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+      )}
 
       {/* 2. DYNAMIC CONTENT VIEWER */}
       <main className="flex-grow">
         <AnimatePresence mode="wait">
-          
+
           {currentTab === 'signup' ? (
             <SignUp
               language={language}
@@ -369,8 +371,8 @@ export default function App({ initialTab = 'home' }: AppProps) {
               className="space-y-0"
             >
               {/* Hero presentation with mission / vision cards */}
-              <Hero 
-                language={language} 
+              <Hero
+                language={language}
                 onOpenPortal={handleOpenPortal}
                 onNavigateToContact={() => {
                   setCurrentTab('contact');
@@ -384,7 +386,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
               <Features language={language} onOpenPortal={handleOpenPortal} />
 
               {/* Subscription grids and FAQ FAQs cards */}
-              <Pricing 
+              <Pricing
                 language={language}
                 onSelectPlan={(planName) => {
                   setPendingPlan(planName);
@@ -447,8 +449,8 @@ export default function App({ initialTab = 'home' }: AppProps) {
       </main>
 
       {/* 3. DESIGN COMPLIANT LIGHT FOOTER */}
-      <Footer 
-        language={language} 
+      <Footer
+        language={language}
         setCurrentTab={handleSetTab}
       />
 
