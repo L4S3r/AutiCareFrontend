@@ -56,3 +56,14 @@ export interface GameScore {
   accuracy: number; // percentage
   durationSeconds: number;
 }
+
+export interface Notification {
+  id: string; // mapped from backend _id
+  title: string;
+  message: string;
+  type: 'alert' | 'info' | 'success' | 'warning' | 'ai_insight';
+  relatedTo?: 'patient' | 'nutrition' | 'behavior' | 'game' | 'system';
+  relatedId?: string;
+  read: boolean;
+  createdAt: string;
+}

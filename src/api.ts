@@ -208,5 +208,21 @@ export async function submitGameScore(scoreData: any) {
   });
 }
 
+export async function getNotifications(): Promise<{ success: boolean; data: any[]; unread: number }> {
+  return request('/notifications');
+}
+
+export async function markNotificationAsRead(id: string): Promise<{ success: boolean }> {
+  return request(`/notifications/${id}/read`, {
+    method: 'PUT',
+  });
+}
+
+export async function markAllNotificationsAsRead(): Promise<{ success: boolean }> {
+  return request('/notifications/read-all', {
+    method: 'PUT',
+  });
+}
+
 
 
