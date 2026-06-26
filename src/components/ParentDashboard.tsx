@@ -37,7 +37,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Daily Behavior Logging Form States
-  const [logMood, setLogMood] = useState<'excellent' | 'good' | 'neutral' | 'unsettled' | 'distressed'>('good');
+  const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry'>('happy');
   const [logSleep, setLogSleep] = useState('8');
   const [logMeds, setLogMeds] = useState(true);
   const [logNotes, setLogNotes] = useState('');
@@ -71,10 +71,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
       if (logsRes.success && logsRes.data && logsRes.data.length > 0) {
         const mapped = logsRes.data.map((l: any) => ({
           date: l.date ? l.date.split('T')[0] : '',
-          mood: l.mood === 'very_happy' ? 'excellent' :
-            l.mood === 'happy' ? 'good' :
-              l.mood === 'neutral' ? 'neutral' :
-                l.mood === 'anxious' || l.mood === 'sad' || l.mood === 'very_sad' ? 'unsettled' : 'distressed',
+          // Kept 1-to-1 matching to let it directly read database values cleanly
+          mood: l.mood || 'neutral',
           sleep: `${l.sleepHours || 0} hrs`,
           meds: l.medication && l.medication[0] ? l.medication[0].taken : true,
           notes: l.notes || ''
@@ -142,16 +140,10 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     if (!activeChildId) return;
 
     try {
-      let dbMood = 'neutral';
-      if (logMood === 'excellent') dbMood = 'very_happy';
-      else if (logMood === 'good') dbMood = 'happy';
-      else if (logMood === 'unsettled') dbMood = 'anxious';
-      else if (logMood === 'distressed') dbMood = 'angry';
-
       const logData = {
         childId: activeChildId,
         date: new Date(),
-        mood: dbMood,
+        mood: logMood, // Passes the string directly ("happy", "angry", etc.) straight to the API pool
         sleepHours: Number(logSleep),
         sleepQuality: Number(logSleep) >= 8 ? 'excellent' : Number(logSleep) >= 6 ? 'good' : 'poor',
         meltdownSeverity: 'none',
@@ -285,11 +277,49 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 border-b pb-2 flex items-center gap-2"><Activity className="w-4 h-4 text-sky-500" />Quick Daily Log submission</h4>
                   {logSuccess && <div className="p-2 bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold rounded-xl">Logs successfully registered into cloud pools!</div>}
                   <form onSubmit={handleAddLog} className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <select value={logMood} onChange={(e: any) => setLogMood(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-lg text-xs font-bold outline-none"><option value="excellent">Excellent</option><option value="good">Good</option><option value="neutral">Neutral</option></select>
-                      <input type="number" value={logSleep} onChange={(e) => setLogSleep(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-lg text-xs font-bold" placeholder="Sleep hours" required />
+                    <div className="space-y-0.5">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block">
+                        {isRtl ? 'المزاج العام' : 'Overall Mood'}
+                      </label>
+                      <select
+                        value={logMood}
+                        onChange={(e: any) => setLogMood(e.target.value)}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                      >
+                        <option value="very_happy">{isRtl ? 'سعيد جداً' : 'Very Happy'}</option>
+                        <option value="happy">{isRtl ? 'سعيد' : 'Happy'}</option>
+                        <option value="neutral">{isRtl ? 'حيادي' : 'Neutral'}</option>
+                        <option value="sad">{isRtl ? 'حزين' : 'Sad'}</option>
+                        <option value="very_sad">{isRtl ? 'حزين جداً' : 'Very Sad'}</option>
+                        <option value="anxious">{isRtl ? 'قلق' : 'Anxious'}</option>
+                        <option value="angry">{isRtl ? 'غاضب' : 'Angry'}</option>
+                      </select>
                     </div>
-                    <textarea value={logNotes} onChange={(e) => setLogNotes(e.target.value)} placeholder="Observations, dietary deviations, sensory tokens..." className="w-full p-2 h-14 bg-slate-50 border rounded-lg text-xs font-bold outline-none resize-none" required />
+                    <div className="space-y-0.5">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block">
+                        {isRtl ? 'ساعات النوم' : 'Sleep Hours'}
+                      </label>
+                      <input
+                        type="number"
+                        value={logSleep}
+                        onChange={(e) => setLogSleep(e.target.value)}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                        placeholder={isRtl ? "عدد ساعات النوم" : "Hours"}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block">
+                        {isRtl ? 'الملاحظات' : 'Observations / Notes'}
+                      </label>
+                      <textarea
+                        value={logNotes}
+                        onChange={(e) => setLogNotes(e.target.value)}
+                        placeholder={isRtl ? "أدخل الملاحظات" : "Enter notes..."}
+                        className="w-full p-2 h-14 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                        required
+                      />
+                    </div>
                     <button type="submit" className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-lg text-xs uppercase tracking-wider transition-all cursor-pointer">Save Log Profile</button>
                   </form>
                 </div>
@@ -440,7 +470,16 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                     {logs.map((log, index) => (
                       <tr key={index}>
                         <td className="py-4 font-mono font-bold text-slate-800">{log.date}</td>
-                        <td><span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${log.mood === 'excellent' ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>{log.mood}</span></td>
+                        <td>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${log.mood === 'very_happy' ? 'bg-emerald-100 text-emerald-700' :
+                            log.mood === 'happy' ? 'bg-emerald-50 text-emerald-600' :
+                              log.mood === 'neutral' ? 'bg-slate-100 text-slate-600' :
+                                log.mood === 'anxious' ? 'bg-amber-50 text-amber-600' :
+                                  'bg-rose-50 text-rose-600' // Falls back to red styling for bad days (sad, very_sad, angry)
+                            }`}>
+                            {log.mood.replace('_', ' ')}
+                          </span>
+                        </td>
                         <td className="font-bold">{log.sleep}</td>
                         <td className="font-black text-emerald-500">{log.meds ? '✓' : '×'}</td>
                         <td className="max-w-xs truncate text-slate-400" title={log.notes}>{log.notes}</td>
