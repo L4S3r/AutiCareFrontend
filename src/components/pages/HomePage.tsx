@@ -89,70 +89,90 @@ function HeroSection() {
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   THE PROBLEM SECTION
-   ═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════ THE PROBLEM SECTION ═══════════════════════════════════════════════════ */
 function ProblemSection() {
+  // Array defining the problem elements alongside their beautiful image color mappings
   const problems = [
     {
       icon: Wifi,
       title: "Fragmented Care",
       desc: "Doctors, therapists, and parents work in silos with no unified system to share insights.",
+      bg: "bg-indigo-50/50",
+      border: "border-indigo-100",
+      color: "text-indigo-600"
     },
     {
       icon: Utensils,
       title: "One-Size-Fits-All Nutrition",
       desc: "Generic nutrition advice ignores each child's unique genetic profile and specific metabolic needs.",
+      bg: "bg-emerald-50/50",
+      border: "border-emerald-100",
+      color: "text-emerald-600"
     },
     {
       icon: Clock,
       title: "Late Detection",
       desc: "Behavioral crises are discovered too late. No predictive tools exist to intervene early.",
+      bg: "bg-amber-50/50",
+      border: "border-amber-100",
+      color: "text-amber-600"
     },
     {
       icon: AlertTriangle,
       title: "Disconnected Ecosystem",
       desc: "Parents manually track meals, sleep, and medications across disconnected apps with no AI guidance.",
+      bg: "bg-rose-50/50",
+      border: "border-rose-100",
+      color: "text-rose-600"
     },
   ];
 
   return (
-    <section className="section bg-[var(--color-sky-lighter)] relative overflow-hidden">
-      {/* Decorative dot grid */}
-      <div className="dot-grid absolute top-8 left-8" />
+    <section id="problem-section" className="relative py-24 bg-white dark:bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 
-      <div className="container relative z-10">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl lg:text-4xl font-extrabold text-[var(--color-text-primary)] mb-3">
-            The <span className="text-[var(--color-brand-primary)]">Problem</span>
-          </h2>
-          <p className="text-base font-semibold text-[var(--color-text-secondary)] mb-2 italic">
-            Autism Care is Broken
-          </p>
-          <p className="text-sm text-[var(--color-text-muted)] max-w-2xl mx-auto">
-            Families with children on the autism spectrum face overwhelming fragmentation across providers, tools, and information.
-          </p>
-        </div>
+        {/* Main Section Header Layout (The red bubble wrapper is completely deleted from here) */}
+        <h2 className="text-4xl font-black text-sky-500 tracking-tight">
+          The Problem
+        </h2>
+        <p className="mt-2 text-sm italic font-medium text-slate-500 dark:text-slate-400">
+          Autism Care is Broken
+        </p>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {problems.map((p, i) => (
-            <div
-              key={i}
-              className="card-blue p-6 text-center animate-fade-in-up"
-              style={{ animationDelay: `${i * 0.1}s` }}
-            >
-              <div className="icon-box icon-box-blue mx-auto mb-4">
-                <p.icon className="w-5 h-5" />
+        <p className="max-w-2xl mx-auto mt-6 text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+          Families with children on the autism spectrum face overwhelming fragmentation across providers, tools, and information.
+        </p>
+
+        {/* Responsive Grid Container holding the 4 color-coded cards intact */}
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {problems.map((prob, idx) => {
+            const IconComponent = prob.icon;
+            return (
+              <div
+                key={idx}
+                className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/80 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-200 text-left flex flex-col justify-between"
+              >
+                <div className="space-y-4">
+                  {/* Icon Badge Box using its specified coloring context */}
+                  <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${prob.bg} ${prob.border} ${prob.color}`}>
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+
+                  {/* Card Content Metadata */}
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-black text-slate-800 dark:text-white">
+                      {prob.title}
+                    </h3>
+                    <p className="text-xs text-slate-400 dark:text-slate-400 font-semibold leading-relaxed">
+                      {prob.desc}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-bold text-[var(--color-text-primary)] text-sm mb-2">
-                {p.title}
-              </h3>
-              <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-                {p.desc}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
       </div>
     </section>
   );
