@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Smile, Brain, Target, Star, Trophy, Users, LogOut, Heart,
   Sparkles, Activity, Plus, LineChart, FileText, Settings,
-  ShieldCheck, ChevronRight, CheckCircle2, AlertCircle
+  ShieldCheck, ChevronRight, CheckCircle2, AlertCircle, ChevronLeft
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
@@ -33,6 +33,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const isRtl = language === 'ar';
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'progress' | 'clinicians' | 'logs'>('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Logs Form States
   const [logMood, setLogMood] = useState<'excellent' | 'good' | 'neutral' | 'unsettled' | 'distressed'>('good');
@@ -84,7 +85,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     }
   };
 
-  // --- Fetch patients then AI prediction on mount ---
   useEffect(() => {
     const loadPrediction = async () => {
       try {
@@ -105,8 +105,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
         }
 
         setActiveChildId(childId);
-
-        // Load logs from MongoDB
         await loadLogs(childId);
 
         const predRes = await getAIPrediction(childId, language);
@@ -153,7 +151,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
         setLogNotes('');
         await loadLogs(activeChildId);
 
-        // Refresh AI prediction
         setLoadingPrediction(true);
         const predRes = await getAIPrediction(activeChildId, language);
         if (predRes?.data) {
@@ -168,8 +165,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     }
   };
 
-
-  // Recharts mock stats
   const chartData = [
     { name: isRtl ? 'الأحد' : 'Sun', Score: 60, Accuracy: 70 },
     { name: isRtl ? 'الإثنين' : 'Mon', Score: 75, Accuracy: 80 },
@@ -181,93 +176,94 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans">
 
-      {/* 1. SIDEBAR NAVIGATION */}
-      <aside className={`w-64 bg-slate-900 text-slate-300 flex flex-col justify-between p-6 ${isRtl ? 'border-l border-slate-800' : 'border-r border-slate-800'}`}>
+      {/* 1. RESPONSIVE SIDEBAR NAVIGATION */}
+      <aside className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-slate-900 text-slate-300 flex flex-col justify-between p-4 transition-all duration-300 border-slate-800 z-50 fixed h-full`}>
         <div className="space-y-8">
-          {/* Logo brand */}
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-base shadow shadow-sky-500/35">
-              A
-            </div>
-            <span className="text-sm font-black text-white tracking-tight">
-              AutiCare <span className="text-sky-400">{isRtl ? 'بوابة الآباء' : 'Parent Portal'}</span>
-            </span>
+          {/* Logo brand and Toggle Control */}
+          <div className="flex items-center justify-between gap-2">
+            {!sidebarCollapsed && (
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-base shadow shadow-sky-500/35">A</div>
+                <span className="text-sm font-black text-white tracking-tight">
+                  AutiCare <span className="text-sky-400">{isRtl ? 'بوابة الآباء' : 'Parent'}</span>
+                </span>
+              </div>
+            )}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 mx-auto transition-colors cursor-pointer"
+            >
+              {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
           </div>
 
           {/* Nav Items */}
-          <nav className="flex flex-col space-y-1.5">
+          <nav className="flex flex-col space-y-2">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold text-left transition-all flex items-center space-x-3 cursor-pointer ${activeTab === 'dashboard'
-                ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
-                : 'hover:bg-slate-800 text-slate-400 hover:text-white'
-                } ${isRtl ? 'space-x-reverse text-right' : ''}`}
+              className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left transition-all flex items-center ${activeTab === 'dashboard' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'hover:bg-slate-800 text-slate-400 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl && !sidebarCollapsed ? 'space-x-reverse text-right' : ''}`}
+              title={isRtl ? 'لوحة التحكم' : 'Dashboard'}
             >
-              <Activity className="w-4 h-4" />
-              <span>{isRtl ? 'لوحة التحكم' : 'Dashboard'}</span>
+              <Activity className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'لوحة التحكم' : 'Dashboard'}</span>}
             </button>
 
             <button
               onClick={() => setActiveTab('progress')}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold text-left transition-all flex items-center space-x-3 cursor-pointer ${activeTab === 'progress'
-                ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
-                : 'hover:bg-slate-800 text-slate-400 hover:text-white'
-                } ${isRtl ? 'space-x-reverse text-right' : ''}`}
+              className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left transition-all flex items-center ${activeTab === 'progress' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'hover:bg-slate-800 text-slate-400 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl && !sidebarCollapsed ? 'space-x-reverse text-right' : ''}`}
+              title={isRtl ? 'متابعة تقدم الطفل' : 'Child Progress'}
             >
-              <LineChart className="w-4 h-4" />
-              <span>{isRtl ? 'متابعة تقدم الطفل' : 'Child Progress'}</span>
+              <LineChart className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'متابعة تقدم الطفل' : 'Child Progress'}</span>}
             </button>
 
             <button
               onClick={() => setActiveTab('clinicians')}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold text-left transition-all flex items-center space-x-3 cursor-pointer ${activeTab === 'clinicians'
-                ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
-                : 'hover:bg-slate-800 text-slate-400 hover:text-white'
-                } ${isRtl ? 'space-x-reverse text-right' : ''}`}
+              className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left transition-all flex items-center ${activeTab === 'clinicians' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'hover:bg-slate-800 text-slate-400 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl && !sidebarCollapsed ? 'space-x-reverse text-right' : ''}`}
+              title={isRtl ? 'الأطباء والمعالجين' : 'Care Team'}
             >
-              <Users className="w-4 h-4" />
-              <span>{isRtl ? 'الأطباء والمعالجين' : 'Care Team'}</span>
+              <Users className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'الأطباء والمعالجين' : 'Care Team'}</span>}
             </button>
 
             <button
               onClick={() => setActiveTab('logs')}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold text-left transition-all flex items-center space-x-3 cursor-pointer ${activeTab === 'logs'
-                ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
-                : 'hover:bg-slate-800 text-slate-400 hover:text-white'
-                } ${isRtl ? 'space-x-reverse text-right' : ''}`}
+              className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left transition-all flex items-center ${activeTab === 'logs' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'hover:bg-slate-800 text-slate-400 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl && !sidebarCollapsed ? 'space-x-reverse text-right' : ''}`}
+              title={isRtl ? 'السجلات اليومية' : 'Daily Logs'}
             >
-              <FileText className="w-4 h-4" />
-              <span>{isRtl ? 'السجلات اليومية' : 'Daily Logs'}</span>
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'السجلات اليومية' : 'Daily Logs'}</span>}
             </button>
           </nav>
         </div>
 
-        {/* Footer profile metadata & logout */}
-        <div className="border-t border-slate-800 pt-5 space-y-4 text-left">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-extrabold text-xs">
-              {parentUser.name.charAt(0)}
+        {/* Footer profile metadata */}
+        <div className="border-t border-slate-800 pt-4 space-y-4">
+          {!sidebarCollapsed && (
+            <div className="flex items-center space-x-3 text-left pl-1">
+              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-extrabold text-xs">
+                {parentUser.name.charAt(0)}
+              </div>
+              <div className="truncate max-w-[140px]">
+                <p className="text-xs font-extrabold text-white truncate">{parentUser.name}</p>
+                <p className="text-[9px] text-slate-500 font-semibold truncate">{parentUser.email}</p>
+              </div>
             </div>
-            <div className="truncate max-w-[140px]">
-              <p className="text-xs font-extrabold text-white truncate">{parentUser.name}</p>
-              <p className="text-[9px] text-slate-500 font-semibold truncate">{parentUser.email}</p>
-            </div>
-          </div>
+          )}
 
           <button
             onClick={onLogout}
-            className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 font-black rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center space-x-2"
+            className={`w-full py-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center ${sidebarCollapsed ? 'px-0' : 'space-x-2'}`}
+            title={isRtl ? 'تسجيل الخروج' : 'Logout'}
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>{isRtl ? 'تسجيل الخروج' : 'Logout'}</span>
+            {!sidebarCollapsed && <span>{isRtl ? 'تسجيل الخروج' : 'LOGOUT'}</span>}
           </button>
         </div>
       </aside>
 
       {/* 2. MAIN CONTENT WRAPPER */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* INJECT YOUR STANDALONE APP HEADER HERE */}
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'pl-16' : 'pl-64'}`}>
         <AppHeader
           title={language === 'ar' ? "بوابة أولياء الأمور" : "Parent Portal"}
           userName={parentUser.name}
@@ -275,11 +271,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
           language={language}
         />
 
-
-        {/* 2. DYNAMIC WORKSPACE STAGE */}
-        <main className="flex-1 p-8 overflow-y-auto space-y-8 select-none text-left">
-
-          {/* HEADER BRAND */}
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-8 select-none text-left">
+          {/* WELCOME BANNER */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200/80 pb-6 gap-4">
             <div>
               <h2 className="text-2xl font-black text-slate-800">
@@ -289,8 +282,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                 {isRtl ? 'راقب وادعم مسار تطور طفلك وعلاجه التكاملي.' : "Track and support your child's progress and care coordination."}
               </p>
             </div>
-
-            <div className="flex items-center space-x-3 bg-white border border-slate-200 rounded-2xl p-2 px-4 shadow-sm">
+            <div className="flex items-center space-x-3 bg-white border border-slate-200 rounded-2xl p-2 px-4 shadow-sm h-fit">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping mr-1" />
               <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
                 {isRtl ? 'متصل بركن الألعاب' : 'Play Corner Synced'}
@@ -298,26 +290,15 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
             </div>
           </div>
 
-          {/* WORKSPACE VIEWS */}
-
-          {/* VIEW A: DASHBOARD HOME OVERVIEW */}
+          {/* DYNAMIC VIEW WORKSPACE */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-
-              {/* Child Profile Header Card */}
+              {/* Child Profile Card */}
               <div className="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 rounded-3xl p-6 text-white relative overflow-hidden shadow-lg border border-sky-400/20">
-                <div className="absolute top-0 right-0 w-32 h-full opacity-10 pointer-events-none">
-                  <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 100 100">
-                    <circle cx="80" cy="50" r="30" />
-                  </svg>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center sm:space-x-5 relative z-10 text-center sm:text-left gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-white border-2 border-white/20 flex items-center justify-center text-3xl font-black text-sky-600 shadow">
-                    👦
-                  </div>
-                  <div className="space-y-1">
-                    <div className="inline-flex items-center space-x-1.5 bg-white/20 px-3 py-1 rounded-full text-[9px] font-extrabold uppercase border border-white/10">
+                <div className="flex flex-col sm:flex-row items-center sm:space-x-5 gap-4 relative z-10">
+                  <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-3xl font-black text-sky-600 shadow">👦</div>
+                  <div className="space-y-1 text-center sm:text-left">
+                    <div className="inline-flex items-center space-x-1.5 bg-white/20 px-3 py-1 rounded-full text-[9px] font-extrabold uppercase">
                       <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
                       <span>{child.level}</span>
                     </div>
@@ -327,78 +308,55 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                       <span>•</span>
                       <span>{isRtl ? 'الجنس:' : 'Gender:'} {isRtl && child.gender === 'Male' ? 'ذكر' : child.gender}</span>
                       <span>•</span>
-                      <span>{isRtl ? 'حساب الطفل:' : 'Child Username:'} <span className="font-mono bg-white/15 px-2 py-0.5 rounded font-black text-white">{child.username}</span></span>
+                      <span>{isRtl ? 'حساب الطفل:' : 'Child Account:'} <span className="font-mono bg-white/15 px-2 py-0.5 rounded font-black text-white">{child.username}</span></span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Twin Panel Grid */}
+              {/* Grid Containers */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                {/* Game Progress Stats */}
+                {/* Progress Indicators */}
                 <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
                   <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2 flex items-center space-x-2">
                     <Trophy className="w-4 h-4 text-sky-500 animate-bounce" />
                     <span>{isRtl ? 'نتائج ألعاب التنمية الإدراكية' : 'Cognitive Games Progress'}</span>
                   </h4>
-
                   <div className="space-y-4">
-                    {/* Memory match score */}
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                        <span className="flex items-center space-x-1.5">
-                          <Brain className="w-4 h-4 text-sky-500" />
-                          <span>{isRtl ? 'تطابق الذاكرة' : 'Memory Match'}</span>
-                        </span>
+                        <span className="flex items-center space-x-1.5"><Brain className="w-4 h-4 text-sky-500" /><span>{isRtl ? 'تطابق الذاكرة' : 'Memory Match'}</span></span>
                         <span>85%</span>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2">
-                        <div className="bg-sky-500 h-2 rounded-full" style={{ width: '85%' }} />
-                      </div>
-                      <span className="text-[9px] text-slate-400 font-bold block">{isRtl ? 'تاريخ اللعب: أمس' : 'Last Played: Yesterday'}</span>
+                      <div className="w-full bg-slate-100 rounded-full h-2"><div className="bg-sky-500 h-2 rounded-full" style={{ width: '85%' }} /></div>
                     </div>
-
-                    {/* Emotion Board score */}
                     <div className="space-y-1.5">
                       <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                        <span className="flex items-center space-x-1.5">
-                          <Smile className="w-4 h-4 text-emerald-500" />
-                          <span>{isRtl ? 'لوحة المشاعر' : 'Emotions Board'}</span>
-                        </span>
+                        <span className="flex items-center space-x-1.5"><Smile className="w-4 h-4 text-emerald-500" /><span>{isRtl ? 'لوحة المشاعر' : 'Emotions Board'}</span></span>
                         <span>90%</span>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2">
-                        <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '90%' }} />
-                      </div>
-                      <span className="text-[9px] text-slate-400 font-bold block">{isRtl ? 'تاريخ اللعب: منذ يومين' : 'Last Played: 2 days ago'}</span>
+                      <div className="w-full bg-slate-100 rounded-full h-2"><div className="bg-emerald-500 h-2 rounded-full" style={{ width: '90%' }} /></div>
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Daily Logs Logger */}
+                {/* Log Sheet Form */}
                 <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
                   <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2 flex items-center space-x-2">
                     <Activity className="w-4 h-4 text-sky-500" />
                     <span>{isRtl ? 'إضافة سجل تدوين سريع' : 'Quick Daily Log'}</span>
                   </h4>
-
                   {logSuccess && (
                     <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-bold flex items-center space-x-2">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>{isRtl ? 'تم إضافة التدوين بنجاح!' : 'Log entry saved successfully!'}</span>
                     </div>
                   )}
-
                   <form onSubmit={handleAddLog} className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-0.5">
                         <label className="text-[9px] font-black uppercase text-slate-400 block">{isRtl ? 'المزاج العام' : 'Overall Mood'}</label>
-                        <select
-                          value={logMood}
-                          onChange={(e: any) => setLogMood(e.target.value)}
-                          className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none"
-                        >
+                        <select value={logMood} onChange={(e: any) => setLogMood(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none">
                           <option value="excellent">Excellent</option>
                           <option value="good">Good</option>
                           <option value="neutral">Neutral</option>
@@ -406,280 +364,129 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                           <option value="distressed">Distressed</option>
                         </select>
                       </div>
-
                       <div className="space-y-0.5">
                         <label className="text-[9px] font-black uppercase text-slate-400 block">{isRtl ? 'ساعات النوم' : 'Sleep Hours'}</label>
-                        <input
-                          type="number"
-                          value={logSleep}
-                          onChange={(e) => setLogSleep(e.target.value)}
-                          placeholder="8"
-                          min="0"
-                          max="24"
-                          className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none"
-                          required
-                        />
+                        <input type="number" value={logSleep} onChange={(e) => setLogSleep(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none" required />
                       </div>
                     </div>
-
                     <div className="space-y-0.5">
-                      <label className="text-[9px] font-black uppercase text-slate-400 block">{isRtl ? 'ملاحظات وتطورات مهمة' : 'Important observations'}</label>
-                      <textarea
-                        value={logNotes}
-                        onChange={(e) => setLogNotes(e.target.value)}
-                        placeholder="Stimming triggers, dietary notes..."
-                        className="w-full p-2 h-14 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none resize-none"
-                        required
-                      />
+                      <label className="text-[9px] font-black uppercase text-slate-400 block">{isRtl ? 'ملاحظات وتطورات مهمة' : 'Observations'}</label>
+                      <textarea value={logNotes} onChange={(e) => setLogNotes(e.target.value)} placeholder="Stimming triggers, dietary notes..." className="w-full p-2 h-14 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none resize-none" required />
                     </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center space-x-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>{isRtl ? 'حفظ السجل' : 'Save Log'}</span>
+                    <button type="submit" className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1">
+                      <Plus className="w-4 h-4" /><span>{isRtl ? 'حفظ السجل' : 'Save Log'}</span>
                     </button>
                   </form>
                 </div>
-
               </div>
             </div>
           )}
 
-          {/* VIEW B: CHILD COGNITIVE PROGRESS + LIVE AI PREDICTION */}
+          {/* VIEW B: PROGRESS & AI INSIGHTS */}
           {activeTab === 'progress' && (
             <div className="space-y-6">
-
-              {/* Growth Chart */}
               <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2">
-                    {isRtl ? 'مخطط التطور المعرفي ونشاط الانتباه' : 'Child Cognitive Growth & Attention Span chart'}
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-semibold mt-1">
-                    Visualizing daily performance indicators synchronized directly from the child play corner.
-                  </p>
-                </div>
-
+                <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2">{isRtl ? 'مخطط التطور المعرفي ونشاط الانتباه' : 'Child Cognitive Growth Chart'}</h4>
                 <div className="h-64 w-full -ml-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <ReLineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                       <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#94a3b8" tickLine={false} />
                       <YAxis tick={{ fontSize: 9 }} stroke="#94a3b8" tickLine={false} domain={[0, 100]} />
-                      <Tooltip contentStyle={{ fontSize: 10, borderRadius: 12, border: '1px solid #e2e8f0' }} />
-                      <Line type="monotone" dataKey="Score" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="Accuracy" stroke="#10b981" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 3 }} />
+                      <Tooltip contentStyle={{ fontSize: 10, borderRadius: 12 }} />
+                      <Line type="monotone" dataKey="Score" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="Accuracy" stroke="#10b981" strokeWidth={2.5} strokeDasharray="5 5" />
                     </ReLineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* ── LIVE AI PREDICTION CARD ── */}
+              {/* AI REPORT COMPONENT BLOCK */}
               <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
                 <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2 flex items-center space-x-2">
                   <Sparkles className="w-4 h-4 text-sky-500 animate-pulse" />
-                  <span>{isRtl ? 'تحليل الذكاء الاصطناعي المباشر' : 'Live AI Behavioral Analysis'}</span>
+                  <span>Live AI Behavioral Analysis</span>
                 </h4>
-
                 <AnimatePresence mode="wait">
-                  {/* Loading */}
-                  {loadingPrediction && (
-                    <motion.div
-                      key="loading"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-100"
-                    >
-                      <div className="w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                      <span className="text-xs font-bold font-mono text-slate-500">
-                        {isRtl ? 'AutiCare AI يحلل سجلات طفلك...' : 'AutiCare AI Analyzing Trends...'}
-                      </span>
-                    </motion.div>
-                  )}
-
-                  {/* Error */}
-                  {!loadingPrediction && predictionError && (
-                    <motion.div
-                      key="error"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100"
-                    >
-                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  {loadingPrediction ? (
+                    <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-bold font-mono text-slate-500">Analyzing trends...</span>
+                    </div>
+                  ) : predictionError ? (
+                    <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                      <AlertCircle className="w-5 h-5 text-amber-500" />
                       <span className="text-xs font-bold text-amber-700">{predictionError}</span>
-                    </motion.div>
-                  )}
-
-                  {/* Real AI Result */}
-                  {!loadingPrediction && !predictionError && predictionData && (
-                    <motion.div
-                      key="result"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className={`relative rounded-2xl border p-5 overflow-hidden ${predictionData.riskScore > 50
-                        ? 'bg-rose-50 border-rose-100'
-                        : 'bg-emerald-50 border-emerald-100'
-                        }`}
-                    >
-                      {/* Risk colour bar */}
-                      <div className={`absolute top-0 right-0 w-1.5 h-full rounded-r-2xl ${predictionData.riskScore > 50 ? 'bg-rose-400' : 'bg-emerald-400'
-                        }`} />
-
-                      {/* Score + label */}
-                      <div className="flex items-start justify-between mb-3">
+                    </div>
+                  ) : predictionData ? (
+                    <div className={`relative rounded-2xl border p-5 ${predictionData.riskScore > 50 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                      <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
-                            {isRtl ? 'درجة خطر نوبة الانهيار المتوقعة (٧ أيام)' : 'AI PREDICTIVE CRISIS SCORE — 7-DAY WINDOW'}
-                          </p>
-                          <p className={`text-3xl font-black font-mono ${predictionData.riskScore > 50 ? 'text-rose-500' : 'text-emerald-500'
-                            }`}>
-                            {predictionData.riskScore}
-                            <span className="text-base ml-0.5">%</span>
-                          </p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">AI 7-Day Crisis Risk Window</p>
+                          <p className={`text-3xl font-black font-mono ${predictionData.riskScore > 50 ? 'text-rose-500' : 'text-emerald-500'}`}>{predictionData.riskScore}%</p>
                         </div>
-                        <span className={`text-[9px] font-extrabold uppercase px-3 py-1 rounded-full ${predictionData.riskScore > 50
-                          ? 'bg-rose-100 text-rose-600'
-                          : 'bg-emerald-100 text-emerald-600'
-                          }`}>
-                          {predictionData.riskScore > 50
-                            ? (isRtl ? 'خطر مرتفع' : 'High Risk')
-                            : (isRtl ? 'مستقر' : 'Stable')}
-                        </span>
                       </div>
-
-                      {/* AI message */}
-                      <p className="text-xs font-semibold text-slate-600 leading-relaxed mb-3">
-                        {predictionData.message}
-                      </p>
-
-                      {/* Interventions */}
-                      {predictionData.interventions && predictionData.interventions.length > 0 && (
-                        <div className="space-y-1.5">
-                          <span className="text-[9px] font-mono font-black block uppercase tracking-wider text-slate-400">
-                            {isRtl ? 'إجراءات الذكاء الاصطناعي المقترحة:' : 'AI Suggested Actions:'}
-                          </span>
-                          {predictionData.interventions.slice(0, 3).map((item: string, idx: number) => (
-                            <div key={idx} className="flex items-start space-x-2 text-xs font-semibold text-slate-600">
-                              <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${predictionData.riskScore > 50 ? 'text-rose-400' : 'text-emerald-400'
-                                }`} />
-                              <span>{item}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </motion.div>
+                      <p className="text-xs font-semibold text-slate-600 leading-relaxed">{predictionData.message}</p>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50 text-slate-400 text-xs rounded-xl border border-slate-100">Complete behavior log submissions to train personalized AI prediction arrays.</div>
                   )}
                 </AnimatePresence>
               </div>
-
             </div>
           )}
 
           {/* VIEW C: CARE TEAM CLINICIANS */}
           {activeTab === 'clinicians' && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest pl-1">
-                  {isRtl ? 'فريق الرعاية الطبية المخصص' : 'ASSIGNED HEALTHCARE PROVIDERS'}
-                </h3>
-                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Contact, view recommendations, and inspect coordinates of your active care team.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center text-2xl">🩺</div>
+                  <div>
+                    <span className="inline-flex bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full">Active Doctor</span>
+                    <h4 className="text-sm font-black text-slate-800">Dr. Sarah Connor</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Child Psychologist</p>
+                  </div>
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {/* Doctor Sarah Connor */}
-                <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between items-start space-y-4">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-2xl">
-                      🩺
-                    </div>
-                    <div className="text-left space-y-1">
-                      <div className="inline-flex items-center bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full">
-                        {isRtl ? 'نشط حالياً' : 'Active Provider'}
-                      </div>
-                      <h4 className="text-sm font-black text-slate-800">Dr. Sarah Connor</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Child Psychologist</p>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-slate-500 leading-normal font-semibold border-t border-slate-50 pt-3 w-full">
-                    <p className="text-[9px] text-slate-400 uppercase tracking-wider">Clinic & Address</p>
-                    <p className="text-slate-700 font-bold">City Development Center</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Recommended DNA Supplementation approval logs synced.</p>
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center text-2xl">🧠</div>
+                  <div>
+                    <span className="inline-flex bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full">Active Therapist</span>
+                    <h4 className="text-sm font-black text-slate-800">Therapist Tom Smith</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Behavioral Therapist</p>
                   </div>
                 </div>
-
-                {/* Therapist Tom Smith */}
-                <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between items-start space-y-4">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-2xl">
-                      🧠
-                    </div>
-                    <div className="text-left space-y-1">
-                      <div className="inline-flex items-center bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full">
-                        {isRtl ? 'نشط حالياً' : 'Active Provider'}
-                      </div>
-                      <h4 className="text-sm font-black text-slate-800">Therapist Tom Smith</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Behavioral Therapist</p>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-slate-500 leading-normal font-semibold border-t border-slate-50 pt-3 w-full">
-                    <p className="text-[9px] text-slate-400 uppercase tracking-wider">Clinic & Address</p>
-                    <p className="text-slate-700 font-bold">Autism Care Clinic</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Manages weekly sensory integration logs and ABA milestones.</p>
-                  </div>
-                </div>
-
               </div>
             </div>
           )}
 
-          {/* VIEW D: DAILY LOGS TABLE */}
+          {/* VIEW D: ARCHIVE LOG ENTRIES */}
           {activeTab === 'logs' && (
-            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2">
-                  {isRtl ? 'أرشيف السجلات والتقارير اليومية' : 'Daily Observational Log archives'}
-                </h4>
-                <p className="text-[10px] text-slate-400 font-semibold mt-1">Recent behaviors logged by parents to construct predictive meltdown algorithms.</p>
-              </div>
-
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden">
+              <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b border-slate-100 pb-2 mb-4">Daily Observational Log Archives</h4>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs font-semibold text-slate-600">
+                <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider text-left">
-                      <th className="pb-3">{isRtl ? 'التاريخ' : 'Date'}</th>
-                      <th className="pb-3">{isRtl ? 'المزاج' : 'Mood'}</th>
-                      <th className="pb-3">{isRtl ? 'ساعات النوم' : 'Sleep'}</th>
-                      <th className="pb-3">{isRtl ? 'المكملات' : 'Meds'}</th>
-                      <th className="pb-3">{isRtl ? 'ملاحظات التقدم' : 'Observations'}</th>
+                    <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase">
+                      <th className="pb-3">Date</th>
+                      <th className="pb-3">Mood</th>
+                      <th className="pb-3">Sleep</th>
+                      <th className="pb-3">Supplements</th>
+                      <th className="pb-3">Notes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {logs.map((log, index) => (
-                      <tr key={index}>
+                      <tr key={index} className="text-slate-600">
                         <td className="py-4 font-mono font-bold text-slate-800">{log.date}</td>
                         <td className="py-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${log.mood === 'excellent' ? 'bg-emerald-50 text-emerald-600' :
-                            log.mood === 'good' ? 'bg-sky-50 text-sky-600' :
-                              log.mood === 'neutral' ? 'bg-slate-100 text-slate-600' : 'bg-rose-50 text-rose-600'
-                            }`}>
-                            {log.mood}
-                          </span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${log.mood === 'excellent' ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`}>{log.mood}</span>
                         </td>
-                        <td className="py-4 font-bold text-slate-700">{log.sleep}</td>
-                        <td className="py-4">
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${log.meds ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                            {log.meds ? '✓' : '×'}
-                          </span>
-                        </td>
-                        <td className="py-4 max-w-[240px] truncate font-medium text-slate-500" title={log.notes}>{log.notes}</td>
+                        <td className="py-4 font-bold">{log.sleep}</td>
+                        <td className="py-4 font-black text-emerald-500">{log.meds ? '✓' : '×'}</td>
+                        <td className="py-4 max-w-xs truncate text-slate-400">{log.notes}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -687,9 +494,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
               </div>
             </div>
           )}
-
-        </main>
-
+        </div>
       </div>
     </div>
   );
