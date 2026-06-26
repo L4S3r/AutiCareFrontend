@@ -41,3 +41,4 @@ yarn-error.log*
 next-env.d.ts
 frontend.md
 src/components/AppHeader.tsx.old
+src/components/AppSidebar.tsx.old
