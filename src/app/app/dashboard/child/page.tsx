@@ -3,9 +3,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AppSidebar from "@/components/AppSidebar";
 import AppHeader from "@/components/AppHeader";
+import { submitGameScore } from "@/api";
 
 // ── Memory Game ───────────────────────────────────────────────
-const EMOJIS = ["🦁","🐯","🐻","🦊","🐸","🐧","🦜","🐬"];
+const EMOJIS = ["🦁", "🐯", "🐻", "🦊", "🐸", "🐧", "🦜", "🐬"];
 
 function MemoryGame({ onComplete }: { onComplete: (score: number, time: number) => void }) {
   const [cards, setCards] = useState<Array<{ id: number; emoji: string; flipped: boolean; matched: boolean }>>([]);
@@ -60,11 +61,10 @@ function MemoryGame({ onComplete }: { onComplete: (score: number, time: number) 
       <div className="grid grid-cols-4 gap-3">
         {cards.map(card => (
           <button key={card.id} onClick={() => handleClick(card.id)}
-            className={`w-full aspect-square rounded-2xl text-3xl flex items-center justify-center border-2 transition-all duration-300 ${
-              card.flipped || card.matched
-                ? card.matched ? "border-green-300 bg-green-50 dark:bg-green-950/40 scale-95" : "border-blue-300 bg-blue-50 dark:bg-blue-950/40"
-                : "border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 hover:border-brand-300 hover:bg-brand-50 dark:hover:bg-brand-950/30"
-            }`}>
+            className={`w-full aspect-square rounded-2xl text-3xl flex items-center justify-center border-2 transition-all duration-300 ${card.flipped || card.matched
+              ? card.matched ? "border-green-300 bg-green-50 dark:bg-green-950/40 scale-95" : "border-blue-300 bg-blue-50 dark:bg-blue-950/40"
+              : "border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-700 hover:border-brand-300 hover:bg-brand-50 dark:hover:bg-brand-950/30"
+              }`}>
             {(card.flipped || card.matched) ? card.emoji : "❓"}
           </button>
         ))}
@@ -85,7 +85,7 @@ function AttentionGame({ onComplete }: { onComplete: (score: number, reactionTim
   const showTarget = useCallback(() => {
     const x = 10 + Math.random() * 80;
     const y = 10 + Math.random() * 80;
-    const emojis = ["⭐","🎯","💎","🌟","🔴"];
+    const emojis = ["⭐", "🎯", "💎", "🌟", "🔴"];
     setTarget({ x, y, emoji: emojis[Math.floor(Math.random() * emojis.length)] });
     setLastAppear(Date.now());
     setTimeout(() => {
@@ -174,12 +174,11 @@ function EmotionGame({ onComplete }: { onComplete: (score: number) => void }) {
       <div className="grid grid-cols-2 gap-3">
         {current.options.sort(() => Math.random() - 0.5).map(opt => (
           <button key={opt} onClick={() => !selected && handleAnswer(opt)}
-            className={`p-3 rounded-xl border-2 font-medium text-sm transition-all duration-200 ${
-              selected === opt
-                ? opt === current.name ? "border-green-500 bg-green-50 text-green-700" : "border-red-300 bg-red-50 text-red-600"
-                : selected && opt === current.name ? "border-green-500 bg-green-50 text-green-700"
+            className={`p-3 rounded-xl border-2 font-medium text-sm transition-all duration-200 ${selected === opt
+              ? opt === current.name ? "border-green-500 bg-green-50 text-green-700" : "border-red-300 bg-red-50 text-red-600"
+              : selected && opt === current.name ? "border-green-500 bg-green-50 text-green-700"
                 : "border-slate-200 hover:border-brand-300 hover:bg-brand-50 text-slate-700 dark:text-slate-300 dark:border-slate-600"
-            }`}>
+              }`}>
             {opt}
           </button>
         ))}
@@ -205,10 +204,22 @@ export default function ChildDashboard() {
     setUser(JSON.parse(stored));
   }, [router]);
 
-  const handleGameComplete = (gameName: string, score: number, extra?: number) => {
-    setResults(r => [{ game: gameName, score, date: "Just now" }, ...r.slice(0, 9)]);
-    setActiveGame(null);
-    alert(`🎉 Great job! You scored ${score} in ${gameName}!`);
+  const handleGameComplete = async (gameName: string, score: number, extra?: number) => {
+    try {
+      if (!user) return;
+
+      // 1. Safely extract target ID footprint from user session
+      const childId = (user as any).child?.id || (user as any).id;
+
+      // 2. Transmit analytical game telemetry over the wire to MongoDB
+      await submitGameScore({ childId, gameName, score });
+
+      // 3. Dynamically update visual timeline stats inside dashboard
+      setResults(r => [{ game: gameName, score, date: "Just now" }, ...r.slice(0, 9)]);
+      setActiveGame(null);
+    } catch (err) {
+      console.error("Failed to sync client game scores to backend core:", err);
+    }
   };
 
   const games = [

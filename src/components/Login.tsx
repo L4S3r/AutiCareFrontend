@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
+import {
   User, Mail, Lock, Info, ArrowRight, CheckCircle2, Sparkles,
   ShieldCheck, Check, Stethoscope, Users, Eye, EyeOff, Clock, Copy, ChevronRight
 } from 'lucide-react';
@@ -97,22 +97,37 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!resetEmail.trim() || !resetEmail.includes('@')) {
       setError(forgotT.errorInvalidEmail);
       return;
     }
-    
+
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, resetEmail.trim().toLowerCase());
-      setResetSent(true);
-    } catch (fbErr: any) {
-      if (fbErr.code === 'auth/user-not-found') {
-        setError(isRtl ? 'البريد الإلكتروني غير مسجل لدينا.' : 'No user found with this email address.');
+      // 2. Query your serverless Express API endpoint directly
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Success state! Firebase template generation triggers
+        setResetSent(true);
       } else {
-        setError(fbErr.message || (isRtl ? 'فشل إرسال رابط الاستعادة. يرجى المحاولة لاحقاً.' : 'Failed to send recovery link. Please try again.'));
+        // 3. Handle explicit account exceptions with native Arabic/English translations
+        if (response.status === 404 || data.error === 'user-not-found') {
+          setError(isRtl ? 'البريد الإلكتروني غير مسجل لدينا.' : 'No user found with this email address.');
+        } else {
+          setError(data.error || (isRtl ? 'فشل إرسال رابط الاستعادة. يرجى المحاولة لاحقاً.' : 'Failed to send recovery link. Please try again.'));
+        }
       }
+    } catch (fbErr: any) {
+      // 4. Fallback network interruption catch block
+      setError(fbErr.message || (isRtl ? 'فشل إرسال رابط الاستعادة. يرجى المحاولة لاحقاً.' : 'Failed to send recovery link. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -138,15 +153,15 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
           let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
           if (loginRes.user.role === 'doctor') finalRole = 'Doctor';
           else if (loginRes.user.role === 'therapist') finalRole = 'Therapist';
-          
+
           onSuccess(finalRole, loginRes.user);
         }
       } else {
         // 3. New user or parent lacking a child profile
         if (selectedRole !== 'Parent') {
           // Clinicians must use standard registration because they need to upload licenses/CVs
-          throw new Error(isRtl 
-            ? 'حساب الطبيب/المعالج غير مسجل. يرجى إنشاء حساب جديد أولاً من صفحة التسجيل.' 
+          throw new Error(isRtl
+            ? 'حساب الطبيب/المعالج غير مسجل. يرجى إنشاء حساب جديد أولاً من صفحة التسجيل.'
             : 'Clinician account not found. Please register first using the Sign Up page.');
         }
 
@@ -165,14 +180,14 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
   const handleGoogleChildSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!googleUser) return;
-    
+
     if (!childName.trim() || !childAge.trim() || !childGender || !diagnosisLevel) {
       setError(isRtl ? 'برجاء ملء جميع الحقول المطلوبة للطفل' : 'Please fill in all required fields for the child');
       return;
     }
-    
+
     setLoading(true);
     try {
       const formattedChildName = childName.trim().replace(/\s+/g, '_').toLowerCase();
@@ -195,9 +210,9 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         // Sync custom local mock storage
         const usersJson = localStorage.getItem('auticare_mock_db');
         const mockDB = usersJson ? JSON.parse(usersJson) : { users: [] };
-        
+
         let parentInMock = mockDB.users.find((u: any) => u.email.toLowerCase() === googleUser.email.toLowerCase());
-        
+
         const childData = {
           name: childName,
           username: childUsername,
@@ -270,8 +285,8 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         if (!fbUser.emailVerified) {
           await signOut(auth);
           throw new Error(
-            isRtl 
-              ? 'الرجاء تأكيد بريدك الإلكتروني أولاً. تم إرسال رابط التأكيد إلى بريدك الإلكتروني.' 
+            isRtl
+              ? 'الرجاء تأكيد بريدك الإلكتروني أولاً. تم إرسال رابط التأكيد إلى بريدك الإلكتروني.'
               : 'Please verify your email address. A confirmation link was sent to your email.'
           );
         }
@@ -282,7 +297,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
           let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
           if (res.user.role === 'doctor') finalRole = 'Doctor';
           else if (res.user.role === 'therapist') finalRole = 'Therapist';
-          
+
           onSuccess(finalRole, res.user);
           setLoading(false);
           return;
@@ -295,7 +310,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
             let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
             if (res.user.role === 'doctor') finalRole = 'Doctor';
             else if (res.user.role === 'therapist') finalRole = 'Therapist';
-            
+
             onSuccess(finalRole, res.user);
             setLoading(false);
             return;
@@ -347,7 +362,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
 
       // Look up user
       const credentialClean = emailOrUsername.trim().toLowerCase();
-      
+
       let matchedUser = mockDB.users.find((u: any) => {
         // Parent check - can match either parent email or child username
         if (u.role === 'Parent' && u.child && u.child.username.toLowerCase() === credentialClean) {
@@ -366,7 +381,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
 
       // Handle role-matching logic
       let finalRole: 'Parent' | 'Child' | 'Doctor' | 'Therapist' = 'Parent';
-      
+
       if (matchedUser.role === 'Parent') {
         if (matchedUser.child && matchedUser.child.username.toLowerCase() === credentialClean) {
           finalRole = 'Child'; // Child logged in directly
@@ -490,15 +505,14 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
             )}
 
             <div className="grid grid-cols-1 gap-4">
-              
+
               {/* Parent/Child Option */}
               <div
                 onClick={() => setSelectedRole('Parent')}
-                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                  selectedRole === 'Parent'
-                    ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
-                    : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
-                } ${isRtl ? 'space-x-reverse' : ''}`}
+                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Parent'
+                  ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
+                  : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
+                  } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Parent' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                   <Users className="w-5 h-5" />
@@ -515,11 +529,10 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
               {/* Doctor Option */}
               <div
                 onClick={() => setSelectedRole('Doctor')}
-                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                  selectedRole === 'Doctor'
-                    ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
-                    : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
-                } ${isRtl ? 'space-x-reverse' : ''}`}
+                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Doctor'
+                  ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
+                  : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
+                  } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Doctor' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                   <Stethoscope className="w-5 h-5" />
@@ -536,11 +549,10 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
               {/* Therapist Option */}
               <div
                 onClick={() => setSelectedRole('Therapist')}
-                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
-                  selectedRole === 'Therapist'
-                    ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
-                    : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
-                } ${isRtl ? 'space-x-reverse' : ''}`}
+                className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Therapist'
+                  ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
+                  : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
+                  } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Therapist' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                   <User className="w-5 h-5" />
@@ -599,7 +611,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
             )}
 
             <form onSubmit={handleLoginSubmit} className="space-y-4">
-              
+
               {/* Email / Username */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-500 block">
@@ -658,7 +670,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
                   />
                   <span className={isRtl ? 'mr-2' : 'ml-2'}>{t.authRemember}</span>
                 </label>
-                
+
                 <button
                   type="button"
                   onClick={() => {
@@ -819,7 +831,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
               </div>
             ) : (
               <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
-                
+
                 {/* Email Address */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-slate-500 block">
@@ -902,7 +914,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
             )}
 
             <form onSubmit={handleGoogleChildSubmit} className="space-y-4 text-left">
-              
+
               {/* Child Name */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-500 block">
@@ -1034,7 +1046,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
 
             {/* Twin Credentials Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
+
               {/* Parent Credentials Card */}
               <div className="bg-slate-50 border border-slate-200/50 rounded-2xl p-5 text-left space-y-3">
                 <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">
@@ -1062,13 +1074,13 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
                   <Sparkles className="w-3 h-3 text-amber-400" />
                   <span>{t.authChildAccountDetails}</span>
                 </span>
-                
+
                 <div className="space-y-1.5 text-xs text-slate-600 font-semibold relative z-10">
                   <div className="flex flex-col">
                     <span className="text-[9px] text-sky-600 uppercase">Child Username</span>
                     <span className="font-extrabold text-slate-800 truncate">{generatedChildCreds.username}</span>
                   </div>
-                  
+
                   <div className="flex flex-col pt-1">
                     <span className="text-[9px] text-sky-600 uppercase">Child Password</span>
                     <div className="flex items-center justify-between bg-white border border-sky-100 rounded-lg px-2 py-1 mt-0.5">
