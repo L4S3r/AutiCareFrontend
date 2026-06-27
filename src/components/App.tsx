@@ -28,6 +28,7 @@ import ChildDashboard from './ChildDashboard';
 import ParentDashboard from './ParentDashboard';
 import DoctorDashboard from './DoctorDashboard';
 import TherapistDashboard from './TherapistDashboard';
+import AdminDashboard from './AdminDashboard';
 import HelpDesk from './HelpDesk';
 import Footer from './Footer';
 import Testimonials from './Testimonials';
@@ -137,6 +138,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
           let mappedRole: UserRole = 'Parent';
           if (parsed.role === 'Doctor') mappedRole = 'Doctor';
           else if (parsed.role === 'Therapist') mappedRole = 'Therapist';
+          else if (parsed.role === 'Admin') mappedRole = 'Admin';
           setActiveRole(mappedRole);
 
           if (parsed.child) {
@@ -230,7 +232,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleLoginSuccess = async (role: 'Parent' | 'Child' | 'Doctor' | 'Therapist', user: any) => {
+  const handleLoginSuccess = async (role: 'Parent' | 'Child' | 'Doctor' | 'Therapist' | 'Admin', user: any) => {
     const sessionUser = {
       ...user,
       role: role
@@ -239,6 +241,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
     let mappedRole: UserRole = 'Parent';
     if (role === 'Doctor') mappedRole = 'Doctor';
     else if (role === 'Therapist') mappedRole = 'Therapist';
+    else if (role === 'Admin') mappedRole = 'Admin';
     setActiveRole(mappedRole);
 
     if (user.child) {
@@ -439,6 +442,13 @@ export default function App({ initialTab = 'home' }: AppProps) {
                 <TherapistDashboard
                   language={language}
                   therapistUser={currentUser}
+                  onLogout={handleLogout}
+                />
+              )}
+              {currentUser.role === 'Admin' && (
+                <AdminDashboard
+                  language={language}
+                  adminUser={{ name: currentUser.name, email: currentUser.email }}
                   onLogout={handleLogout}
                 />
               )}

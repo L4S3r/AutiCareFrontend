@@ -13,7 +13,7 @@ import { auth, googleProvider } from '../config/firebase';
 
 interface LoginProps {
   language: Language;
-  onSuccess: (role: 'Parent' | 'Child' | 'Doctor' | 'Therapist', user: any) => void;
+  onSuccess: (role: 'Parent' | 'Child' | 'Doctor' | 'Therapist' | 'Admin', user: any) => void;
   onNavigateToSignUp: () => void;
 }
 

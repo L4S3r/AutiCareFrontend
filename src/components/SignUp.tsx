@@ -12,11 +12,12 @@ import { register, createPatient } from '../api';
 
 interface SignUpProps {
   language: Language;
-  onSuccess: (role: 'Parent' | 'Doctor' | 'Therapist', userData: any) => void;
+  onSuccess: (role: 'Parent' | 'Doctor' | 'Therapist' | 'Admin', userData: any) => void;
   onNavigateToLogin: () => void;
 }
 
 // Reusable Drag and Drop File Uploader Component
+// Reimplement Later
 function FileUploader({
   label,
   subtext,
