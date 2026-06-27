@@ -9,8 +9,6 @@ import {
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
 import { register, createPatient } from '../api';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { auth } from '../config/firebase';
 
 interface SignUpProps {
   language: Language;
@@ -334,109 +332,49 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
     setLoading(true);
 
     try {
-      // 1. Register user in Firebase Authentication
-      let userCredential;
-      try {
-        userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Send email confirmation link through Firebase
-        await sendEmailVerification(userCredential.user);
-      } catch (fbErr: any) {
-        if (fbErr.code === 'auth/email-already-in-use') {
-          throw new Error(isRtl ? 'البريد الإلكتروني مسجل بالفعل' : 'Email address is already registered');
-        }
-        throw fbErr;
-      }
-
-      // 2. Sync to local MongoDB backend
       const backendRole = selectedRole === 'Doctor' ? 'doctor' : selectedRole === 'Therapist' ? 'therapist' : 'parent';
-      const registerData = {
-        name: fullName,
-        email: email,
-        password: password,
-        role: backendRole,
-        clinic: selectedRole !== 'Parent' ? `${profTitle} - ${clinicName}` : undefined
-      };
 
-      const registerRes = await register(registerData);
-
-      // Save client-side mock user details in localStorage
-      const usersJson = localStorage.getItem('auticare_mock_db');
-      const mockDB = usersJson ? JSON.parse(usersJson) : { users: [] };
-
-      // Prevent duplicate registration in local mock storage
       if (selectedRole === 'Parent') {
-        // Create default child profile credentials
         const formattedChildName = childName.trim().replace(/\s+/g, '_').toLowerCase();
         const randomNum = Math.floor(100 + Math.random() * 900);
         const childUsername = `${formattedChildName}_${randomNum}`;
         const childPass = `child_${Math.floor(100000 + Math.random() * 900000)}`;
 
-        // Attempt patient creation on backend
-        if (registerRes.success && registerRes.user) {
-          try {
-            await createPatient({
-              name: childName,
-              dateOfBirth: new Date(new Date().getFullYear() - parseInt(childAge), 0, 1),
-              gender: childGender.toLowerCase() === 'male' ? 'male' : 'female',
-              asdLevel: diagnosisLevel.replace(/\s+/g, '').toLowerCase(), // Level1 -> level1
-              parentId: registerRes.user._id
-            });
-          } catch (e) {
-            console.error('Backend child registration failed, continuing mock registration...', e);
-          }
-        }
-
-        const newUser = {
+        const registerRes = await register({
           name: fullName,
-          email: email.toLowerCase(),
-          password: password,
-          role: 'Parent',
-          child: {
-            name: childName,
-            username: childUsername,
-            password: childPass,
-            age: childAge,
-            level: diagnosisLevel,
-            gender: childGender
-          },
-          status: 'approved'
-        };
+          email,
+          password,
+          role: backendRole,
+          childName: childName.trim(),
+          childAge,
+          childGender: childGender.toLowerCase(),
+          diagnosisLevel: diagnosisLevel.replace(/\s+/g, '').toLowerCase(),
+          childUsername,
+          childPassword: childPass,
+        });
 
-        const existingIdx = mockDB.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
-        if (existingIdx >= 0) {
-          mockDB.users[existingIdx] = newUser;
-        } else {
-          mockDB.users.push(newUser);
+        if (!registerRes.success) {
+          throw new Error(registerRes.error || 'Registration failed');
         }
 
-        localStorage.setItem('auticare_mock_db', JSON.stringify(mockDB));
         setGeneratedChildCreds({ username: childUsername, pass: childPass });
-        setStep(3); // Go to parent success screen
-      } else {
-        // Clinician flow - Pending verification
-        const newUser = {
-          name: fullName,
-          email: email.toLowerCase(),
-          password: password,
-          role: selectedRole,
-          gender: gender,
-          yearsExp: yearsExp,
-          title: profTitle,
-          specialization: specialization,
-          clinicName: clinicName,
-          clinicAddress: clinicAddress,
-          status: 'pending' // Clinicians require review
-        };
+        setStep(3);
 
-        const existingIdx = mockDB.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
-        if (existingIdx >= 0) {
-          mockDB.users[existingIdx] = newUser;
-        } else {
-          mockDB.users.push(newUser);
+      } else {
+        // Clinician flow
+        const registerRes = await register({
+          name: fullName,
+          email,
+          password,
+          role: backendRole,
+          clinic: `${profTitle} - ${clinicName}`,
+        });
+
+        if (!registerRes.success) {
+          throw new Error(registerRes.error || 'Registration failed');
         }
 
-        localStorage.setItem('auticare_mock_db', JSON.stringify(mockDB));
-        setStep(4); // Go to clinician pending screen
+        setStep(4);
       }
     } catch (err: any) {
       setError(err.message || (isRtl ? 'فشل التسجيل. يرجى المحاولة لاحقاً.' : 'Registration failed. Please try again.'));
@@ -485,8 +423,8 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
               <div
                 onClick={() => setSelectedRole('Parent')}
                 className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Parent'
-                    ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
-                    : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
+                  ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
+                  : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
                   } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Parent' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
@@ -505,8 +443,8 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
               <div
                 onClick={() => setSelectedRole('Doctor')}
                 className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Doctor'
-                    ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
-                    : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
+                  ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
+                  : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
                   } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Doctor' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
@@ -525,8 +463,8 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
               <div
                 onClick={() => setSelectedRole('Therapist')}
                 className={`flex items-center space-x-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${selectedRole === 'Therapist'
-                    ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
-                    : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
+                  ? 'border-sky-500 bg-sky-50/50 shadow-md ring-1 ring-sky-500/20'
+                  : 'border-slate-100 bg-slate-50 hover:bg-slate-100/50'
                   } ${isRtl ? 'space-x-reverse' : ''}`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedRole === 'Therapist' ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
@@ -682,11 +620,11 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                         <div
                           key={stepVal}
                           className={`h-full rounded-full transition-all duration-300 ${stepVal <= strengthInfo.score
-                              ? (strengthInfo.score === 4 ? 'bg-emerald-500' :
-                                strengthInfo.score === 3 ? 'bg-teal-500' :
-                                  strengthInfo.score === 2 ? 'bg-amber-500' :
-                                    'bg-rose-500')
-                              : 'bg-slate-200'
+                            ? (strengthInfo.score === 4 ? 'bg-emerald-500' :
+                              strengthInfo.score === 3 ? 'bg-teal-500' :
+                                strengthInfo.score === 2 ? 'bg-amber-500' :
+                                  'bg-rose-500')
+                            : 'bg-slate-200'
                             }`}
                         />
                       ))}
