@@ -294,10 +294,10 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         const idToken = await fbUser.getIdToken();
         const res = await firebaseLogin({ idToken });
         if (res.success && res.user) {
-          let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
+          let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' | 'Admin' = selectedRole || 'Parent';
           if (res.user.role === 'doctor') finalRole = 'Doctor';
           else if (res.user.role === 'therapist') finalRole = 'Therapist';
-
+          else if (res.user.role === 'admin') finalRole = 'Admin';
           onSuccess(finalRole, res.user);
           setLoading(false);
           return;
@@ -307,10 +307,10 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         try {
           const res = await login({ email: emailOrUsername, password });
           if (res.success && res.user) {
-            let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
+            let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' | 'Admin' = selectedRole || 'Parent';
             if (res.user.role === 'doctor') finalRole = 'Doctor';
             else if (res.user.role === 'therapist') finalRole = 'Therapist';
-
+            else if (res.user.role === 'admin') finalRole = 'Admin';
             onSuccess(finalRole, res.user);
             setLoading(false);
             return;
