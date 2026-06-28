@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Smile, Brain, Target, Star, Trophy, Users, LogOut, Heart,
@@ -60,12 +60,15 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     }
   };
 
-  // Toggle voice logging using Web Speech API (if supported) or simulated input fallback
-  const toggleVoiceLogging = () => {
+  const recognitionRef = useRef<any>(null);
+
+  // Initialize SpeechRecognition instance once (or when language changes)
+  // to avoid Garbage Collection / re-render teardown bugs.
+  useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = false;
       recognition.lang = language === 'ar' ? 'ar-SA' : 'en-US';
 
@@ -74,25 +77,59 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
+        const transcript = event.results[event.results.length - 1][0].transcript;
         setLogNotes(prev => prev ? `${prev} ${transcript}` : transcript);
         processVoiceInputNLP(transcript);
-        setIsListening(false);
       };
 
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
-        setIsListening(false);
+        // Only drop listening state for fatal errors; ignore transient warnings.
+        if (event.error !== 'no-speech' && event.error !== 'audio-capture') {
+          setIsListening(false);
+        }
       };
 
       recognition.onend = () => {
         setIsListening(false);
       };
 
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (err) {
+          console.warn("Failed to abort speech recognition:", err);
+        }
+      }
+    };
+  }, [language]);
+
+  // Toggle voice logging using persistent SpeechRecognition instance
+  const toggleVoiceLogging = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const recognition = recognitionRef.current;
+    if (recognition) {
       if (isListening) {
-        recognition.stop();
+        try {
+          recognition.stop();
+        } catch (err) {
+          console.warn("Failed to stop speech recognition:", err);
+        }
       } else {
-        recognition.start();
+        try {
+          recognition.start();
+        } catch (err) {
+          console.warn("Failed to start speech recognition:", err);
+          setIsListening(false);
+        }
       }
     } else {
       // Toggle listening display for fallback/simulated click suggestions
@@ -381,7 +418,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         {/* Voice Logger Button */}
                         <button
                           type="button"
-                          onClick={toggleVoiceLogging}
+                          onClick={(e) => toggleVoiceLogging(e)}
                           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase transition-all shadow-sm border cursor-pointer ${
                             isListening
                               ? 'bg-rose-500 text-white border-rose-600 animate-pulse'

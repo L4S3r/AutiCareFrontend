@@ -19,7 +19,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
   const [loadingPrediction, setLoadingPrediction] = useState<boolean>(false);
   const [predictionData, setPredictionData] = useState<any>(null);
   const [showRiskModal, setShowRiskModal] = useState<boolean>(false);
-  
+
   // Todays input form values
   const [formDate, setFormDate] = useState('2026-06-22');
   const [formMood, setFormMood] = useState<'excellent' | 'good' | 'neutral' | 'unsettled' | 'distressed'>('good');
@@ -39,7 +39,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
         if (patientsRes.success && patientsRes.data.length > 0) {
           const childId = patientsRes.data[0]._id;
           setActiveChildId(childId);
-          
+
           // Fetch logs
           const logsRes = await getBehaviorLogs(childId);
           if (logsRes.success && logsRes.data.length > 0) {
@@ -77,7 +77,6 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
   }, [language]);
 
 
-  // Lists from screenshots #8 and #9
   const analyticsChecklist = [
     { label: isRtl ? 'استمارات وجداول تدوين السلوك اليومية' : 'Daily behavior log forms', checked: true },
     { label: isRtl ? 'رسوم ومؤشرات الاتجاهات لـ 7 أيام' : '7-day trend charts', checked: true },
@@ -121,7 +120,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
       };
 
       const createRes = await createBehaviorLog(logData);
-      
+
       if (createRes.success) {
         setLoadingPrediction(true);
         const predRes = await getAIPrediction(activeChildId, language);
@@ -131,7 +130,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
             setShowRiskModal(true);
           }
         }
-        
+
         const logsRes = await getBehaviorLogs(activeChildId);
         if (logsRes.success && logsRes.data.length > 0) {
           const mapped = logsRes.data.map((l: any) => ({
@@ -190,7 +189,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
 
   return (
     <div className="bg-white rounded-3xl border border-sky-100 shadow-md p-6 sm:p-8" id="behavioral-tracker-workspace">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-sky-100 pb-6 mb-8 gap-4">
         <div>
@@ -200,7 +199,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
           </h3>
           <p className="text-xs text-slate-400 mt-1">Log behaviors to see predictive meltdown scoring update. AI alerts help prevent crises.</p>
         </div>
-        
+
         {/* Helper report trigger */}
         <button
           onClick={() => alert('Download requested. Generating encrypted medical clinical behavioral trend report (PDF)...')}
@@ -212,7 +211,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
+
         {/* Col 1: Today's behavior logger */}
         <div className="lg:col-span-4 space-y-6">
           <form onSubmit={handleAddLog} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-4">
@@ -255,11 +254,10 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
                     key={m}
                     type="button"
                     onClick={() => setFormMood(m)}
-                    className={`p-1.5 rounded-lg text-lg text-center border capitalize transition-all focus:outline-none cursor-pointer ${
-                      formMood === m
+                    className={`p-1.5 rounded-lg text-lg text-center border capitalize transition-all focus:outline-none cursor-pointer ${formMood === m
                         ? 'bg-sky-500 border-sky-600 text-white font-bold scale-105'
                         : 'bg-white border-slate-200 hover:border-sky-200'
-                    }`}
+                      }`}
                     title={m}
                   >
                     {m === 'excellent' ? '😊' : m === 'good' ? '🙂' : m === 'neutral' ? '😐' : m === 'unsettled' ? '😟' : '😫'}
@@ -318,7 +316,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
 
         {/* Col 2: High-impact analytical graph & Interactive Early Alert display */}
         <div className="lg:col-span-5 space-y-6">
-          
+
           {/* Custom SVG Graph representing 7 day tracking */}
           <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
             <div className="flex justify-between items-center border-b border-sky-50 pb-2.5">
@@ -334,7 +332,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
             {/* Embedded interactive SVG chart */}
             <div className="relative overflow-visible">
               <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
-                
+
                 {/* Horizontal threshold zones (Green, Yellow, Red) */}
                 {/* Red zone */}
                 <rect x={paddingLeft} y={paddingTop} width={chartWidth} height={chartHeight * 0.35} fill="#fecdd3" opacity="0.25" />
@@ -378,7 +376,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
                     <circle
                       cx={p.x}
                       cy={p.y}
-                      r={ activeHoverIdx === idx ? 5.5 : 3.5 }
+                      r={activeHoverIdx === idx ? 5.5 : 3.5}
                       className="fill-sky-600 stroke-white stroke-2 group-hover:fill-sky-800 transition-all animate-none"
                     />
                     {/* X axis short dates ticks label */}
@@ -386,9 +384,8 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
                       x={p.x}
                       y={paddingTop + chartHeight + 16}
                       textAnchor="middle"
-                      className={`text-[8px] font-black font-mono transition-colors ${
-                        activeHoverIdx === idx ? 'fill-sky-600 font-extrabold' : 'fill-slate-400'
-                      }`}
+                      className={`text-[8px] font-black font-mono transition-colors ${activeHoverIdx === idx ? 'fill-sky-600 font-extrabold' : 'fill-slate-400'
+                        }`}
                     >
                       {p.date.split('-')[2]}
                     </text>
@@ -407,9 +404,8 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
                 </div>
                 <div className="text-center bg-white border border-sky-100 p-2 rounded-xl flex-shrink-0 min-w-[70px]">
                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest block font-mono">CRISIS INDEX</span>
-                  <span className={`text-base font-black font-mono tracking-tight block leading-none mt-1 ${
-                    activeLog.meltdownRiskScore > 65 ? 'text-rose-600 animate-pulse' : 'text-sky-600'
-                  }`}>
+                  <span className={`text-base font-black font-mono tracking-tight block leading-none mt-1 ${activeLog.meltdownRiskScore > 65 ? 'text-rose-600 animate-pulse' : 'text-sky-600'
+                    }`}>
                     {activeLog.meltdownRiskScore}/100
                   </span>
                 </div>
@@ -437,11 +433,10 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className={`p-5 rounded-3xl space-y-3 relative overflow-hidden shadow-sm border ${
-                  predictionData.riskScore > 50
+                className={`p-5 rounded-3xl space-y-3 relative overflow-hidden shadow-sm border ${predictionData.riskScore > 50
                     ? 'bg-rose-50 border-rose-100 text-rose-800'
                     : 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                }`}
+                  }`}
               >
                 <div className={`absolute top-0 ${isRtl ? 'left-0' : 'right-0'} w-2 h-full ${predictionData.riskScore > 50 ? 'bg-rose-500' : 'bg-emerald-500'}`} />
                 <div className="flex items-center space-x-2">
@@ -512,7 +507,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
 
         {/* Col 3: Bullet feature checklist display from screenshots */}
         <div className="lg:col-span-3 space-y-6">
-          
+
           {/* Sliced Checklist #1 */}
           <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-3">
             <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Behavioral Analytics check</h4>
@@ -565,7 +560,7 @@ export default function BehavioralTracker({ language }: BehavioralTrackerProps) 
             >
               {/* Top Warning Banner Stripe */}
               <div className="absolute top-0 inset-x-0 h-2 bg-rose-500" />
-              
+
               <div className="flex items-center space-x-3 text-rose-600 mb-4">
                 <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center animate-pulse">
                   <AlertCircle className="w-6 h-6 text-rose-600" />
