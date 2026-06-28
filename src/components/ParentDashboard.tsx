@@ -78,7 +78,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     // 2. Isolate meltdown indicators
     const meltdownMatch = /meltdown|tantrum|crisis|انهيار|نوبة/i.test(text);
     if (meltdownMatch) {
-      setLogMood('distressed');
+      setLogMood('angry');
     }
   };
 
@@ -441,8 +441,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         <option value="sad">{isRtl ? 'حزين' : 'Sad'}</option>
                         <option value="very_sad">{isRtl ? 'حزين جداً' : 'Very Sad'}</option>
                         <option value="anxious">{isRtl ? 'قلق' : 'Anxious'}</option>
-                        <option value="angry">{isRtl ? 'غاضب' : 'Angry'}</option>
-                        <option value="distressed">{isRtl ? 'مضطرب / نوبة' : 'Distressed / Meltdown'}</option>
+                        <option value="angry">{isRtl ? 'غاضب / نوبة / مضطرب' : 'Angry / Meltdown / Distressed'}</option>
                       </select>
                     </div>
                     <div className="space-y-0.5">
