@@ -43,6 +43,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [logNotes, setLogNotes] = useState('');
   const [logSuccess, setLogSuccess] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string>('');
+  const shouldBeListeningRef = useRef(false);
 
   // Natural Language Processing Text Translation Micro-Helper
   const processVoiceInputNLP = (text: string) => {
@@ -74,6 +76,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
       recognition.onstart = () => {
         setIsListening(true);
+        setVoiceError('');
       };
 
       recognition.onresult = (event: any) => {
@@ -84,14 +87,27 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
-        // Only drop listening state for fatal errors; ignore transient warnings.
+        setVoiceError(event.error);
+        
+        // If it is a fatal blocker (like permissions, or language unsupported), stop retrying
         if (event.error !== 'no-speech' && event.error !== 'audio-capture') {
+          shouldBeListeningRef.current = false;
           setIsListening(false);
         }
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        // Auto-restart if user did not explicitly click stop (e.g. silent timeout)
+        if (shouldBeListeningRef.current) {
+          try {
+            recognition.start();
+          } catch (err) {
+            console.warn("Failed to auto-restart speech recognition:", err);
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognitionRef.current = recognition;
@@ -118,16 +134,21 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     const recognition = recognitionRef.current;
     if (recognition) {
       if (isListening) {
+        shouldBeListeningRef.current = false;
         try {
           recognition.stop();
         } catch (err) {
           console.warn("Failed to stop speech recognition:", err);
         }
+        setIsListening(false);
       } else {
+        shouldBeListeningRef.current = true;
+        setVoiceError('');
         try {
           recognition.start();
         } catch (err) {
           console.warn("Failed to start speech recognition:", err);
+          shouldBeListeningRef.current = false;
           setIsListening(false);
         }
       }
@@ -141,6 +162,12 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const simulateSpeech = (text: string) => {
     setLogNotes(prev => prev ? `${prev} ${text}` : text);
     processVoiceInputNLP(text);
+    shouldBeListeningRef.current = false;
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (_) {}
+    }
     setIsListening(false);
   };
 
@@ -429,6 +456,11 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                           <span>{isListening ? (isRtl ? 'جاري الاستماع...' : 'Listening...') : (isRtl ? 'إدخال صوتي' : 'Voice Log')}</span>
                         </button>
                       </div>
+                      {voiceError && (
+                        <div className="text-[9px] text-rose-500 font-bold block mb-1">
+                          ⚠️ {voiceError === 'not-allowed' ? 'Mic permission blocked' : `Voice log stopped: ${voiceError}`}
+                        </div>
+                      )}
                       <div className="relative">
                         <textarea
                           value={logNotes}
