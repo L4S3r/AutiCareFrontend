@@ -17,6 +17,16 @@ interface LoginProps {
   onNavigateToSignUp: () => void;
 }
 
+const mapBackendRole = (rawRole: string | undefined): 'Parent' | 'Doctor' | 'Therapist' | 'Child' | 'Admin' => {
+  switch ((rawRole ?? '').toLowerCase()) {
+    case 'admin':     return 'Admin';
+    case 'doctor':    return 'Doctor';
+    case 'therapist': return 'Therapist';
+    case 'child':     return 'Child';
+    default:          return 'Parent';
+  }
+};
+
 export default function Login({ language, onSuccess, onNavigateToSignUp }: LoginProps) {
   const t = TRANSLATIONS[language];
   const isRtl = language === 'ar';
@@ -150,10 +160,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         // 2. Existing user (with child profile if parent) - proceed with login
         const loginRes = await firebaseLogin({ idToken });
         if (loginRes.success && loginRes.user) {
-          let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' = selectedRole || 'Parent';
-          if (loginRes.user.role === 'doctor') finalRole = 'Doctor';
-          else if (loginRes.user.role === 'therapist') finalRole = 'Therapist';
-
+          const finalRole = mapBackendRole(loginRes.user.role);
           onSuccess(finalRole, loginRes.user);
         }
       } else {
@@ -294,10 +301,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         const idToken = await fbUser.getIdToken();
         const res = await firebaseLogin({ idToken });
         if (res.success && res.user) {
-          let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' | 'Admin' = selectedRole || 'Parent';
-          if (res.user.role === 'doctor') finalRole = 'Doctor';
-          else if (res.user.role === 'therapist') finalRole = 'Therapist';
-          else if (res.user.role === 'admin') finalRole = 'Admin';
+          const finalRole = mapBackendRole(res.user.role);
           onSuccess(finalRole, res.user);
           setLoading(false);
           return;
@@ -307,10 +311,7 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
         try {
           const res = await login({ email: emailOrUsername, password });
           if (res.success && res.user) {
-            let finalRole: 'Parent' | 'Doctor' | 'Therapist' | 'Child' | 'Admin' = selectedRole || 'Parent';
-            if (res.user.role === 'doctor') finalRole = 'Doctor';
-            else if (res.user.role === 'therapist') finalRole = 'Therapist';
-            else if (res.user.role === 'admin') finalRole = 'Admin';
+            const finalRole = mapBackendRole(res.user.role);
             onSuccess(finalRole, res.user);
             setLoading(false);
             return;
