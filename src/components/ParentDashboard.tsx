@@ -5,7 +5,7 @@ import {
   Smile, Brain, Target, Star, Trophy, Users, LogOut, Heart,
   Sparkles, Activity, Plus, LineChart, FileText, Settings,
   ShieldCheck, ChevronRight, CheckCircle2, AlertCircle, ChevronLeft,
-  Utensils, Pill, Ban, HelpCircle
+  Utensils, Pill, Ban, HelpCircle, Mic
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
@@ -37,11 +37,75 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   // Daily Behavior Logging Form States
-  const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry'>('happy');
+  const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry' | 'distressed'>('happy');
   const [logSleep, setLogSleep] = useState('8');
   const [logMeds, setLogMeds] = useState(true);
   const [logNotes, setLogNotes] = useState('');
   const [logSuccess, setLogSuccess] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  // Natural Language Processing Text Translation Micro-Helper
+  const processVoiceInputNLP = (text: string) => {
+    // 1. Extract numerical strings following the keyword 'sleep' or 'slept'
+    const sleepMatch = text.match(/(?:sleep|slept)\s*(\d+(?:\.\d+)?)/i) || 
+                       text.match(/(\d+(?:\.\d+)?)\s*(?:hours?\s+of\s+)?(?:sleep|slept)/i);
+    if (sleepMatch) {
+      setLogSleep(sleepMatch[1]);
+    }
+
+    // 2. Isolate meltdown indicators
+    const meltdownMatch = /meltdown|tantrum|crisis|انهيار|نوبة/i.test(text);
+    if (meltdownMatch) {
+      setLogMood('distressed');
+    }
+  };
+
+  // Toggle voice logging using Web Speech API (if supported) or simulated input fallback
+  const toggleVoiceLogging = () => {
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = language === 'ar' ? 'ar-SA' : 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setLogNotes(prev => prev ? `${prev} ${transcript}` : transcript);
+        processVoiceInputNLP(transcript);
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    } else {
+      // Toggle listening display for fallback/simulated click suggestions
+      setIsListening(!isListening);
+    }
+  };
+
+  // Helper to simulate speech entry from the suggestions helper
+  const simulateSpeech = (text: string) => {
+    setLogNotes(prev => prev ? `${prev} ${text}` : text);
+    processVoiceInputNLP(text);
+    setIsListening(false);
+  };
 
   // API Integrated Workspace States
   const [activeChildId, setActiveChildId] = useState<string>('');
@@ -293,6 +357,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         <option value="very_sad">{isRtl ? 'حزين جداً' : 'Very Sad'}</option>
                         <option value="anxious">{isRtl ? 'قلق' : 'Anxious'}</option>
                         <option value="angry">{isRtl ? 'غاضب' : 'Angry'}</option>
+                        <option value="distressed">{isRtl ? 'مضطرب / نوبة' : 'Distressed / Meltdown'}</option>
                       </select>
                     </div>
                     <div className="space-y-0.5">
@@ -308,17 +373,55 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         required
                       />
                     </div>
-                    <div className="space-y-0.5">
-                      <label className="text-[9px] font-black uppercase text-slate-400 block">
-                        {isRtl ? 'الملاحظات' : 'Observations / Notes'}
-                      </label>
-                      <textarea
-                        value={logNotes}
-                        onChange={(e) => setLogNotes(e.target.value)}
-                        placeholder={isRtl ? "أدخل الملاحظات" : "Enter notes..."}
-                        className="w-full p-2 h-14 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                        required
-                      />
+                    <div className="space-y-0.5 relative">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[9px] font-black uppercase text-slate-400 block">
+                          {isRtl ? 'الملاحظات' : 'Observations / Notes'}
+                        </label>
+                        {/* Voice Logger Button */}
+                        <button
+                          type="button"
+                          onClick={toggleVoiceLogging}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase transition-all shadow-sm border cursor-pointer ${
+                            isListening
+                              ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
+                              : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-500 hover:text-white'
+                          }`}
+                        >
+                          <Mic className="w-3 h-3" />
+                          <span>{isListening ? (isRtl ? 'جاري الاستماع...' : 'Listening...') : (isRtl ? 'إدخال صوتي' : 'Voice Log')}</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <textarea
+                          value={logNotes}
+                          onChange={(e) => setLogNotes(e.target.value)}
+                          placeholder={isRtl ? "أدخل الملاحظات أو اضغط على الإدخال الصوتي..." : "Enter notes or click Voice Log..."}
+                          className="w-full p-2 pr-8 h-14 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                          required
+                        />
+                      </div>
+                      
+                      {/* Listening demo suggestions helper */}
+                      {isListening && (
+                        <div className="absolute z-20 bottom-full left-0 right-0 mb-1 p-2.5 bg-indigo-50/95 border border-indigo-200 rounded-xl shadow-lg text-[10px] text-indigo-700 font-semibold animate-fade-in flex flex-col gap-1.5">
+                          <p className="border-b border-indigo-100 pb-1">🎤 Speak now, or click a demo utterance below to parse:</p>
+                          <button
+                            type="button"
+                            onClick={() => simulateSpeech("Slept 6 hours but had a major meltdown in the evening")}
+                            className="text-left hover:underline text-[9px] text-slate-500 block truncate cursor-pointer font-mono"
+                          >
+                            "Slept 6 hours but had a major meltdown in the evening"
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => simulateSpeech("He slept 9 hours and had no tantrum today")}
+                            className="text-left hover:underline text-[9px] text-slate-500 block truncate cursor-pointer font-mono"
+                          >
+                            "He slept 9 hours and had no tantrum today"
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <button type="submit" className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-lg text-xs uppercase tracking-wider transition-all cursor-pointer">Save Log Profile</button>
                   </form>

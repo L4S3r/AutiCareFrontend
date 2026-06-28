@@ -32,7 +32,7 @@ import AdminDashboard from './AdminDashboard';
 import HelpDesk from './HelpDesk';
 import Footer from './Footer';
 import Testimonials from './Testimonials';
-import { register, login, getMe, logout, getPatients, createPatient } from '../api';
+import { register, login, getMe, logout, getPatients, createPatient, syncVerificationStatus } from '../api';
 
 const formatChildProfile = (dbChild: any) => {
   if (!dbChild) return null;
@@ -116,6 +116,8 @@ export default function App({ initialTab = 'home' }: AppProps) {
   const [authError, setAuthError] = useState<string>('');
   const [loginEmail, setLoginEmail] = useState<string>('');
   const [loginPassword, setLoginPassword] = useState<string>('');
+  const [isVerificationChecking, setIsVerificationChecking] = useState<boolean>(false);
+  const [verificationSyncError, setVerificationSyncError] = useState<string>('');
 
 
 
@@ -407,6 +409,107 @@ export default function App({ initialTab = 'home' }: AppProps) {
               <HelpDesk language={language} />
             </motion.div>
           ) : null}
+
+          {/* ─── EMAIL NOT VERIFIED FULLSCREEN GATE ──────────────────────────
+               Intercepts dashboard hydration for users who signed up via
+               email/password and haven't clicked their verification link yet.
+               Firebase/Google accounts are always pre-verified and skip this.
+          ──────────────────────────────────────────────────────────────────── */}
+          {currentUser && currentUser.isVerified === false && (
+            <div className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center antialiased font-sans">
+              <div className="max-w-md w-full bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl space-y-6">
+
+                {/* Animated mail icon */}
+                <div className="w-16 h-16 bg-blue-50 dark:bg-blue-950/40 rounded-2xl flex items-center justify-center mx-auto text-blue-600 animate-pulse">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 19v-8.93a2 2 0 01.89-1.664l8-5.333a2 2 0 012.22 0l8 5.333A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                  </svg>
+                </div>
+
+                {/* Bilingual heading + body */}
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {isRtl ? 'تأكيد الحساب مطلوب ✉️' : 'Email Verification Required ✉️'}
+                  </h2>
+                  <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400 font-medium">
+                    {isRtl
+                      ? 'يرجى تفعيل الحساب عبر رابط التأكيد المرسل لبريدك الإلكتروني أولاً لتنشيط لوحة التحكم الخاصة بك.'
+                      : 'Please go ahead and verify/confirm your email via the secure activation link sent to your inbox to unlock your clinical care workspace.'}
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    {isRtl ? `تم الإرسال إلى: ${currentUser.email}` : `Sent to: ${currentUser.email}`}
+                  </p>
+                </div>
+
+                {/* Sync error feedback */}
+                {verificationSyncError && (
+                  <p className="text-xs text-red-500 font-semibold -mt-2">{verificationSyncError}</p>
+                )}
+
+                {/* CTA: re-check backend state */}
+                <div className="pt-2 space-y-3">
+                  <button
+                    id="btn-verify-confirmed"
+                    disabled={isVerificationChecking}
+                    onClick={async () => {
+                      setIsVerificationChecking(true);
+                      setVerificationSyncError('');
+                      try {
+                        const res = await syncVerificationStatus();
+                        if (res.verified && res.user) {
+                          // Stamp verified flag and persist to localStorage
+                          const refreshed = { ...currentUser, ...res.user, isVerified: true };
+                          localStorage.setItem('auticare_active_user', JSON.stringify(refreshed));
+                          setCurrentUser(refreshed);
+                        } else if (res.verified) {
+                          const refreshed = { ...currentUser, isVerified: true };
+                          localStorage.setItem('auticare_active_user', JSON.stringify(refreshed));
+                          setCurrentUser(refreshed);
+                        } else {
+                          setVerificationSyncError(
+                            isRtl
+                              ? 'لم يتم تأكيد البريد الإلكتروني بعد. يرجى التحقق من صندوق الوارد.'
+                              : 'Email not yet verified. Please check your inbox and click the link.'
+                          );
+                        }
+                      } catch {
+                        setVerificationSyncError(
+                          isRtl
+                            ? 'تعذّر الاتصال بالخادم. حاول مجدداً.'
+                            : 'Could not reach the server. Please try again.'
+                        );
+                      } finally {
+                        setIsVerificationChecking(false);
+                      }
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed font-bold text-white transition-colors duration-200 cursor-pointer shadow-md flex items-center justify-center gap-2"
+                  >
+                    {isVerificationChecking ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                        </svg>
+                        {isRtl ? 'جارٍ التحقق...' : 'Checking...'}
+                      </>
+                    ) : (
+                      isRtl ? 'لقد قمت بالتأكيد — تحقق الآن ✔️' : 'I Have Confirmed My Account ✔️'
+                    )}
+                  </button>
+
+                  {/* Logout escape hatch */}
+                  <button
+                    id="btn-verify-logout"
+                    onClick={handleLogout}
+                    className="w-full py-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors font-medium"
+                  >
+                    {isRtl ? 'تسجيل الخروج والعودة' : 'Sign out and go back'}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
 
           {/* DYNAMIC COMPREHENSIVE CARE PORTAL SECTION */}
           {currentTab === 'portal' && currentUser && (

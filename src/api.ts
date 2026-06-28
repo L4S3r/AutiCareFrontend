@@ -1,5 +1,26 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// ─── Typed API Error ─────────────────────────────────────────────────────────
+// Carries a structured flag so callers can branch on email-verification failures
+// without string-matching error messages.
+export class ApiError extends Error {
+  status: number;
+  code: string | undefined;
+  isEmailNotVerified: boolean;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.isEmailNotVerified =
+      status === 403 &&
+      (code === 'EMAIL_NOT_VERIFIED' ||
+        message.toLowerCase().includes('not verified') ||
+        message.toLowerCase().includes('verification required'));
+  }
+}
+
 const getHeaders = () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers: Record<string, string> = {
@@ -23,7 +44,13 @@ async function request(path: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    // Propagate structured error — EMAIL_NOT_VERIFIED code is preserved as a
+    // typed flag so overlay components can react without message-string matching.
+    throw new ApiError(
+      errorData.error || `HTTP error! status: ${response.status}`,
+      response.status,
+      errorData.code,
+    );
   }
 
   return response.json();
@@ -224,5 +251,31 @@ export async function markAllNotificationsAsRead(): Promise<{ success: boolean }
   });
 }
 
+export async function getAdminStats() {
+  return request('/admin/stats');
+}
 
+export async function getAdminUsers(role?: string) {
+  const path = role && role !== 'all' ? `/admin/users?role=${role}` : '/admin/users';
+  return request(path);
+}
+
+export async function toggleUserStatus(id: string, isActive: boolean) {
+  return request(`/admin/users/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ isActive }),
+  });
+}
+
+export async function getAdminAuditLogs() {
+  return request('/admin/audit');
+}
+
+// ─── Verification Sync ────────────────────────────────────────────────────────
+// Called by the email-not-verified overlay button to ask the backend whether
+// the user has clicked their verification link since last login. Returns
+// { verified: boolean, user?: object } so the App can refresh currentUser.
+export async function syncVerificationStatus(): Promise<{ verified: boolean; user?: any }> {
+  return request('/auth/sync-verification-status', { method: 'POST' });
+}
 

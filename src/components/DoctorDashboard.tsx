@@ -37,6 +37,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
   const [isApproving, setIsApproving] = useState(false);
   const [doctorNotes, setDoctorNotes] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
+  const [clinicalError, setClinicalError] = useState('');
 
   const stats = [
     { label: 'Active Case Profiles', value: patientsList.length.toString() || '24', icon: <Users className="w-5 h-5 text-sky-500" /> },
@@ -102,16 +103,34 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
 
   const handleApprovePlan = async () => {
     if (!nutritionPlan) return;
+
+    // ─── Clinical Safety Gate ─────────────────────────────────────────────────
+    // Block approval if the doctor has typed adjustments but the note is too
+    // short to constitute a proper clinical justification (< 15 chars).
+    if (doctorNotes.trim().length > 0 && doctorNotes.trim().length < 15) {
+      setClinicalError(
+        'Clinical justification is too brief. Please provide at least 15 characters describing the override rationale before approving.'
+      );
+      return;
+    }
+    setClinicalError('');
+
+    // Build structured override payload from the physician's typed notes
+    const doctorEdits = doctorNotes.trim().length > 0
+      ? { overrideNotes: doctorNotes.trim(), adjustedAt: new Date().toISOString() }
+      : {};
+
     try {
       setIsApproving(true);
-      const res = await approveNutritionPlan(nutritionPlan._id || nutritionPlan.id, doctorNotes, {});
+      const res = await approveNutritionPlan(nutritionPlan._id || nutritionPlan.id, doctorNotes, doctorEdits);
       if (res.success) {
         setNutritionPlan(res.data);
+        setClinicalError('');
         setActionSuccess('Nutrition plan approved and synced to parental notification channels.');
         setTimeout(() => setActionSuccess(''), 4000);
       }
     } catch (err) {
-      console.error("Signature process aborted:", err);
+      console.error('Signature process aborted:', err);
     } finally {
       setIsApproving(false);
     }
@@ -252,8 +271,20 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                       <div className="space-y-4 text-xs">
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1"><span className="text-[9px] font-black text-slate-400 block uppercase">Supplement Cofactor Matrix Summary</span><p className="font-semibold text-slate-600 truncate">{nutritionPlan.aiRecommendation?.supplements?.map((s: any) => s.name).join(', ') || 'No supplements compiled.'}</p></div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Specialist Clinical Overrides & Notes</label>
-                          <textarea value={doctorNotes} onChange={(e) => setDoctorNotes(e.target.value)} placeholder="Type custom overrides, exclusions, or titration dosage requirements for the parent dashboard view container..." className="w-full p-2.5 h-20 bg-slate-50 border rounded-xl font-medium outline-none resize-none focus:border-brand-500 transition-colors" />
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Specialist Clinical Overrides &amp; Notes</label>
+                          <textarea
+                            value={doctorNotes}
+                            onChange={(e) => { setDoctorNotes(e.target.value); if (clinicalError) setClinicalError(''); }}
+                            placeholder="Type custom overrides, exclusions, or titration dosage requirements for the parent dashboard view container..."
+                            className="w-full p-2.5 h-20 bg-slate-50 border rounded-xl font-medium outline-none resize-none focus:border-brand-500 transition-colors"
+                          />
+                          {/* ── Clinical Safety Alert ── */}
+                          {clinicalError && (
+                            <div className="flex items-start gap-2 p-2.5 bg-red-50 border border-red-300 rounded-xl animate-pulse">
+                              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-[11px] font-bold text-red-700 leading-snug">{clinicalError}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
