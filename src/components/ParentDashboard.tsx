@@ -163,6 +163,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     setLogNotes(prev => prev ? `${prev} ${text}` : text);
     processVoiceInputNLP(text);
     shouldBeListeningRef.current = false;
+    setVoiceError('');
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -472,9 +473,13 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                       </div>
                       
                       {/* Listening demo suggestions helper */}
-                      {isListening && (
+                      {(isListening || voiceError === 'network' || voiceError === 'not-allowed') && (
                         <div className="absolute z-20 bottom-full left-0 right-0 mb-1 p-2.5 bg-indigo-50/95 border border-indigo-200 rounded-xl shadow-lg text-[10px] text-indigo-700 font-semibold animate-fade-in flex flex-col gap-1.5">
-                          <p className="border-b border-indigo-100 pb-1">🎤 Speak now, or click a demo utterance below to parse:</p>
+                          <p className="border-b border-indigo-100 pb-1">
+                            {isListening
+                              ? '🎤 Speak now, or click a demo utterance below to parse:'
+                              : '⚠️ Speech Recognition offline. Click below to simulate voice logs:'}
+                          </p>
                           <button
                             type="button"
                             onClick={() => simulateSpeech("Slept 6 hours but had a major meltdown in the evening")}
