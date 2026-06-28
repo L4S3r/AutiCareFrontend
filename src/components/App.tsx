@@ -65,6 +65,22 @@ interface AppProps {
   initialTab?: string;
 }
 
+// ─── Shared role normaliser ───────────────────────────────────────────────────
+// Handles both the capitalised values stored in localStorage (e.g. 'Admin') and
+// the lowercase values returned directly by the backend API (e.g. 'admin').
+// Having a single source of truth here prevents the "Admin lands on Parent
+// dashboard" class of bugs caused by missing branches in ad-hoc if-chains.
+const mapRole = (raw: string | undefined): UserRole => {
+  switch ((raw ?? '').toLowerCase()) {
+    case 'doctor':    return 'Doctor';
+    case 'therapist': return 'Therapist';
+    case 'admin':     return 'Admin';
+    case 'child':     return 'Child';
+    default:          return 'Parent';
+  }
+};
+
+
 export default function App({ initialTab = 'home' }: AppProps) {
   // Localization states
   const [language, setLanguage] = useState<Language>('en');
@@ -130,22 +146,27 @@ export default function App({ initialTab = 'home' }: AppProps) {
   // Session Recovery
   useEffect(() => {
     const restoreSession = async () => {
-      // 1. Try mock localStorage active user first
+      // 1. Try localStorage cached user.
+      // Guard: if a backend token also exists and the cached role is 'Parent',
+      // we can't be sure the role wasn't corrupted by an earlier bug (e.g. Admin
+      // being mapped to Parent). Fall through to the live /me call in that case
+      // so the authoritative backend role always wins.
+      const cachedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const activeMockUser = typeof window !== 'undefined' ? localStorage.getItem('auticare_active_user') : null;
-      if (activeMockUser) {
+      const cachedRoleIsTrusted = (role: string | undefined) =>
+        ['Doctor', 'Therapist', 'Admin', 'Child'].includes(role ?? '');
+
+      if (activeMockUser && (!cachedToken || cachedRoleIsTrusted(JSON.parse(activeMockUser)?.role))) {
         try {
           const parsed = JSON.parse(activeMockUser);
           setCurrentUser(parsed);
 
-          let mappedRole: UserRole = 'Parent';
-          if (parsed.role === 'Doctor') mappedRole = 'Doctor';
-          else if (parsed.role === 'Therapist') mappedRole = 'Therapist';
-          else if (parsed.role === 'Admin') mappedRole = 'Admin';
+          const mappedRole = mapRole(parsed.role);
           setActiveRole(mappedRole);
 
           if (parsed.child) {
             setActiveChild(parsed.child);
-          } else if (parsed.role === 'Parent') {
+          } else if (mappedRole === 'Parent' || mappedRole === 'Child') {
             try {
               const patientsRes = await getPatients();
               if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
@@ -169,34 +190,34 @@ export default function App({ initialTab = 'home' }: AppProps) {
         try {
           const userRes = await getMe();
           if (userRes.success) {
-            // Map backend role to UI sandbox role
-            let mappedRole: UserRole = 'Parent';
-            if (userRes.user.role === 'doctor') mappedRole = 'Doctor';
-            else if (userRes.user.role === 'therapist') mappedRole = 'Therapist';
+            // Map backend role to UI sandbox role (handles all 5 roles)
+            const mappedRole = mapRole(userRes.user.role);
             setActiveRole(mappedRole);
 
-            // Load child profile details
-            const patientsRes = await getPatients();
-            if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
-              const formattedChild = formatChildProfile(patientsRes.data[0]);
-              setActiveChild(formattedChild);
-
-              // Also update auticare_active_user to include child info
-              const sessionUser = {
-                ...userRes.user,
-                role: mappedRole,
-                child: formattedChild
-              };
-              localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
-              setCurrentUser(sessionUser);
-            } else {
-              const sessionUser = {
-                ...userRes.user,
-                role: mappedRole
-              };
-              localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
-              setCurrentUser(sessionUser);
+            // Only Parent / Child accounts have a linked child profile.
+            // Fetching /patients for Admin/Doctor/Therapist would return a
+            // 403 from the assignment guard and pollute the error log.
+            const needsChild = mappedRole === 'Parent' || mappedRole === 'Child';
+            let formattedChild = null;
+            if (needsChild) {
+              try {
+                const patientsRes = await getPatients();
+                if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {
+                  formattedChild = formatChildProfile(patientsRes.data[0]);
+                  setActiveChild(formattedChild);
+                }
+              } catch (err) {
+                console.error('Failed to fetch patient on session restoration:', err);
+              }
             }
+
+            const sessionUser = {
+              ...userRes.user,
+              role: mappedRole,
+              ...(formattedChild ? { child: formattedChild } : {}),
+            };
+            localStorage.setItem('auticare_active_user', JSON.stringify(sessionUser));
+            setCurrentUser(sessionUser);
           }
         } catch (err) {
           console.error('Session restoration failed:', err);
@@ -235,22 +256,16 @@ export default function App({ initialTab = 'home' }: AppProps) {
   };
 
   const handleLoginSuccess = async (role: 'Parent' | 'Child' | 'Doctor' | 'Therapist' | 'Admin', user: any) => {
-    const sessionUser = {
-      ...user,
-      role: role
-    };
-
-    let mappedRole: UserRole = 'Parent';
-    if (role === 'Doctor') mappedRole = 'Doctor';
-    else if (role === 'Therapist') mappedRole = 'Therapist';
-    else if (role === 'Admin') mappedRole = 'Admin';
+    const mappedRole = mapRole(role);
     setActiveRole(mappedRole);
+
+    const sessionUser: any = { ...user, role: mappedRole };
 
     if (user.child) {
       const formattedChild = formatChildProfile(user.child);
       setActiveChild(formattedChild);
       sessionUser.child = formattedChild;
-    } else if (role === 'Parent') {
+    } else if (mappedRole === 'Parent' || mappedRole === 'Child') {
       try {
         const patientsRes = await getPatients();
         if (patientsRes.success && patientsRes.data && patientsRes.data.length > 0) {

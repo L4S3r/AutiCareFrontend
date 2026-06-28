@@ -1,6 +1,6 @@
 export type Language = 'en' | 'ar';
 
-export type UserRole = 'Parent' | 'Doctor' | 'Therapist' | 'Admin';
+export type UserRole = 'Parent' | 'Doctor' | 'Therapist' | 'Admin' | 'Child';
 
 export interface GeneticReport {
   id: string;
