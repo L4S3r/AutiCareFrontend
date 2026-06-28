@@ -39,48 +39,88 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   // Daily Behavior Logging Form States
   const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry' | 'distressed'>('happy');
   const [logSleep, setLogSleep] = useState('8');
-  const [logMeds, setLogMeds] = useState(true);
+  const [logMedications, setLogMedications] = useState([
+    { name: 'Methyl Folate (Metafolin)', time: 'Morning', taken: true },
+    { name: 'Methylcobalamin (B12)', time: 'Morning', taken: true },
+    { name: 'Vitamin D3 + K2', time: 'Noon', taken: true },
+  ]);
   const [logNotes, setLogNotes] = useState('');
   const [logSuccess, setLogSuccess] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string>('');
   const shouldBeListeningRef = useRef(false);
 
+  const toggleMedication = (index: number) => {
+    setLogMedications(prev => prev.map((m, i) => i === index ? { ...m, taken: !m.taken } : m));
+  };
+
+  const sleepLabel = (h: number) => h >= 9 ? '🌟 Excellent' : h >= 7 ? '✅ Good' : h >= 5 ? '⚠️ Fair' : '❌ Poor';
+  const sleepColor = (h: number) => h >= 9 ? '#10b981' : h >= 7 ? '#0ea5e9' : h >= 5 ? '#f59e0b' : '#ef4444';
+
   // Natural Language Processing Text Translation Micro-Helper
   const processVoiceInputNLP = (text: string) => {
-    const mapSpokenNumber = (word: string): string => {
+    const mapSpokenNumber = (word: string): number => {
       const num = parseFloat(word);
-      if (!isNaN(num)) return num.toString();
+      if (!isNaN(num)) return num;
 
-      const mapping: { [key: string]: string } = {
-        'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5',
-        'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10',
-        'eleven': '11', 'twelve': '12',
+      const mapping: { [key: string]: number } = {
+        'half': 0.5,
+        'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+        'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+        'eleven': 11, 'twelve': 12,
         // Arabic words
-        'ساعة': '1', 'ساعتين': '2', 'ثلاث': '3', 'ثلاثة': '3',
-        'أربع': '4', 'أربعة': '4', 'خمس': '5', 'خمسة': '5',
-        'ست': '6', 'ستة': '6', 'سبع': '7', 'سبعة': '7',
-        'ثمان': '8', 'ثماني': '8', 'ثمانية': '8', 'تسع': '9',
-        'تسعة': '9', 'عشر': '10', 'عشرة': '10'
+        '\u0646\u0635': 0.5, '\u0646\u0635\u0641': 0.5,
+        '\u0633\u0627\u0639\u0629': 1, '\u0633\u0627\u0639\u062a\u064a\u0646': 2, '\u062b\u0644\u0627\u062b': 3, '\u062b\u0644\u0627\u062b\u0629': 3,
+        '\u0623\u0631\u0628\u0639': 4, '\u0623\u0631\u0628\u0639\u0629': 4, '\u062e\u0645\u0633': 5, '\u062e\u0645\u0633\u0629': 5,
+        '\u0633\u062a': 6, '\u0633\u062a\u0629': 6, '\u0633\u0628\u0639': 7, '\u0633\u0628\u0639\u0629': 7,
+        '\u062b\u0645\u0627\u0646': 8, '\u062b\u0645\u0627\u0646\u064a': 8, '\u062b\u0645\u0627\u0646\u064a\u0629': 8, '\u062a\u0633\u0639': 9,
+        '\u062a\u0633\u0639\u0629': 9, '\u0639\u0634\u0631': 10, '\u0639\u0634\u0631\u0629': 10
       };
 
-      return mapping[word.toLowerCase().trim()] || '8';
+      return mapping[word.toLowerCase().trim()] ?? 8;
     };
 
-    // 1. Extract numerical strings or word numbers following the keyword 'sleep' or 'slept'
-    const wordsPattern = '\\d+(?:\\.\\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|ساعة|ساعتين|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثمانية|تسع|تسعة|عشر|عشرة';
-    const sleepMatch = text.match(new RegExp(`(?:sleep|slept)\\s*(${wordsPattern})`, 'i')) || 
-                       text.match(new RegExp(`(${wordsPattern})\\s*(?:hours?\\s+of\\s+)?(?:sleep|slept)`, 'i'));
+    const numWords = '\\d+(?:\\.\\d+)?|half|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve'
+      + '|\u0646\u0635|\u0646\u0635\u0641|\u0633\u0627\u0639\u0629|\u0633\u0627\u0639\u062a\u064a\u0646|\u062b\u0644\u0627\u062b|\u062b\u0644\u0627\u062b\u0629|\u0623\u0631\u0628\u0639|\u0623\u0631\u0628\u0639\u0629|\u062e\u0645\u0633|\u062e\u0645\u0633\u0629|\u0633\u062a|\u0633\u062a\u0629|\u0633\u0628\u0639|\u0633\u0628\u0639\u0629|\u062b\u0645\u0627\u0646|\u062b\u0645\u0627\u0646\u064a\u0629|\u062a\u0633\u0639|\u062a\u0633\u0639\u0629|\u0639\u0634\u0631|\u0639\u0634\u0631\u0629';
+    // Optional filler: "slept FOR 6", "slept ABOUT seven", "slept ONLY 5"
+    const optFiller = '(?:for|about|around|only|just|nearly|approximately|roughly|\u0644\u0645\u062f\u0629|\u062d\u0648\u0627\u0644\u064a|\u062a\u0642\u0631\u064a\u0628\u0627\u064b|\u0641\u0642\u0637)?\\s*';
+
+    // 1. Extract sleep hours — handles "slept for 6 hours", "7 hours of sleep", etc.
+    const sleepMatch =
+      text.match(new RegExp(`(?:slept?|sleep|\u0646\u0627\u0645|\u0646\u0627\u0645\u062a)\\s*${optFiller}(${numWords})`, 'i')) ||
+      text.match(new RegExp(`(${numWords})\\s*(?:hours?\\s+of\\s+)?(?:sleep|slept|\u0633\u0627\u0639\u0627\u062a\\s+\u0646\u0648\u0645)`, 'i'));
     if (sleepMatch) {
-      setLogSleep(mapSpokenNumber(sleepMatch[1]));
+      const hours = Math.min(Math.max(mapSpokenNumber(sleepMatch[1]), 0.5), 24);
+      setLogSleep(hours.toString());
     }
 
-    // 2. Isolate meltdown indicators
-    const meltdownMatch = /meltdown|tantrum|crisis|انهيار|نوبة/i.test(text);
-    if (meltdownMatch) {
+    // 2. Meltdown count — "had 3 meltdowns", "two tantrums today"
+    const meltdownCountMatch = text.match(
+      /(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:meltdowns?|tantrums?|crises|\u0627\u0646\u0647\u064a\u0627\u0631|\u0646\u0648\u0628\u0629)/i
+    );
+    if (meltdownCountMatch) {
       setLogMood('angry');
+    } else {
+      // 3. Mood keyword detection (only if no meltdown count)
+      if (/meltdown|tantrum|crisis|\u0627\u0646\u0647\u064a\u0627\u0631|\u0646\u0648\u0628\u0629/i.test(text)) {
+        setLogMood('angry');
+      } else if (/\b(?:calm|relaxed|peaceful|great|happy|excellent|\u0647\u0627\u062f\u0626|\u0645\u0631\u062a\u0627\u062d)\b/i.test(text)) {
+        setLogMood('happy');
+      } else if (/\b(?:sad|upset|crying|unhappy|\u062d\u0632\u064a\u0646|\u064a\u0628\u0643\u064a)\b/i.test(text)) {
+        setLogMood('sad');
+      } else if (/\b(?:anxious|nervous|worried|stressed|\u0642\u0644\u0642)\b/i.test(text)) {
+        setLogMood('anxious');
+      }
+    }
+
+    // 4. Medication detection — sets all meds taken/not taken based on voice
+    if (/\b(?:took|taken|gave)\b.*\b(?:meds?|medication|medicine|pill|\u062f\u0648\u0627\u0621|\u0623\u0639\u0637\u064a\u062a\u0647)\b/i.test(text)) {
+      setLogMedications(prev => prev.map(m => ({ ...m, taken: true })));
+    } else if (/\b(?:didn't|did not|no|skipped|forgot|refused|\u0644\u0645 \u064a\u0623\u062e\u0630|\u0646\u0633\u064a)\b.*\b(?:meds?|medication|medicine|pill|\u062f\u0648\u0627\u0621)\b/i.test(text)) {
+      setLogMedications(prev => prev.map(m => ({ ...m, taken: false })));
     }
   };
+
 
   const recognitionRef = useRef<any>(null);
 
@@ -289,15 +329,16 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     if (!activeChildId) return;
 
     try {
+      const sleepNum = Number(logSleep);
       const logData = {
         childId: activeChildId,
         date: new Date(),
-        mood: logMood, // Passes the string directly ("happy", "angry", etc.) straight to the API pool
-        sleepHours: Number(logSleep),
-        sleepQuality: Number(logSleep) >= 8 ? 'excellent' : Number(logSleep) >= 6 ? 'good' : 'poor',
+        mood: logMood,
+        sleepHours: sleepNum,
+        sleepQuality: sleepNum >= 8 ? 'excellent' : sleepNum >= 6 ? 'good' : 'poor',
         meltdownSeverity: 'none',
         meltdowns: 0,
-        medication: [{ name: 'Metafolin', taken: logMeds }],
+        medication: logMedications.map(m => ({ name: m.name, taken: m.taken, time: m.time })),
         notes: logNotes || 'Parent logged daily behavioral stats.',
       };
 
@@ -444,18 +485,33 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         <option value="angry">{isRtl ? 'غاضب / نوبة / مضطرب' : 'Angry / Meltdown / Distressed'}</option>
                       </select>
                     </div>
-                    <div className="space-y-0.5">
-                      <label className="text-[9px] font-black uppercase text-slate-400 block">
-                        {isRtl ? 'ساعات النوم' : 'Sleep Hours'}
-                      </label>
+                    {/* ── Sleep Duration Slider ── */}
+                    <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-black uppercase text-slate-400">
+                          {isRtl ? 'ساعات النوم' : 'Sleep Duration'}
+                        </label>
+                        <span className="text-xs font-black" style={{ color: sleepColor(Number(logSleep)) }}>
+                          {logSleep}h — {sleepLabel(Number(logSleep))}
+                        </span>
+                      </div>
                       <input
-                        type="number"
+                        id="sleep-slider"
+                        type="range"
+                        min="0.5"
+                        max="14"
+                        step="0.5"
                         value={logSleep}
                         onChange={(e) => setLogSleep(e.target.value)}
-                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                        placeholder={isRtl ? "عدد ساعات النوم" : "Hours"}
-                        required
+                        style={{
+                          accentColor: sleepColor(Number(logSleep)),
+                          width: '100%',
+                          cursor: 'pointer',
+                        }}
                       />
+                      <div className="flex justify-between text-[9px] text-slate-400 font-semibold">
+                        <span>0.5h</span><span>4h</span><span>7h</span><span>10h</span><span>14h</span>
+                      </div>
                     </div>
                     <div className="space-y-0.5 relative">
                       <div className="flex justify-between items-center mb-1">
@@ -516,6 +572,44 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         </div>
                       )}
                     </div>
+                    {/* ── Medication Checklist ── */}
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase text-slate-400 block">
+                        {isRtl ? 'الأدوية والمكملات الغذائية' : 'Medications & Supplements'}
+                      </label>
+                      <div className="space-y-1.5">
+                        {logMedications.map((med, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => toggleMedication(i)}
+                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                              med.taken
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                : 'bg-rose-50 border-rose-200 text-rose-600'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[10px] font-black flex-shrink-0 ${
+                                med.taken ? 'bg-emerald-500' : 'bg-rose-400'
+                              }`}>
+                                {med.taken ? '✓' : '✗'}
+                              </span>
+                              <div className="text-left">
+                                <p className="font-extrabold leading-tight">{med.name}</p>
+                                <p className="text-[9px] font-semibold opacity-70">{med.time}</p>
+                              </div>
+                            </div>
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              med.taken ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'
+                            }`}>
+                              {med.taken ? (isRtl ? 'أُخذ' : 'Taken') : (isRtl ? 'لم يُؤخذ' : 'Skipped')}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <button type="submit" className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-lg text-xs uppercase tracking-wider transition-all cursor-pointer">Save Log Profile</button>
                   </form>
                 </div>
