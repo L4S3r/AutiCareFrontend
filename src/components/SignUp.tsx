@@ -141,6 +141,7 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
   const [generatedChildCreds, setGeneratedChildCreds] = useState<{ username: string; pass: string } | null>(null);
   const [showChildPassword, setShowChildPassword] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [registeredUser, setRegisteredUser] = useState<any>(null);
 
   const strengthT = {
     en: {
@@ -358,6 +359,7 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
           throw new Error(registerRes.error || 'Registration failed');
         }
 
+        setRegisteredUser(registerRes.user);
         setGeneratedChildCreds({ username: childUsername, pass: childPass });
         setStep(3);
 
@@ -1082,7 +1084,14 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
 
             <div className="pt-2">
               <button
-                onClick={() => onSuccess('Parent', { name: fullName, email: email, child: generatedChildCreds })}
+                onClick={() => {
+                  const baseUser = registeredUser || { name: fullName, email, role: 'parent', isVerified: false };
+                  const mergedUser = {
+                    ...baseUser,
+                    child: generatedChildCreds
+                  };
+                  onSuccess('Parent', mergedUser);
+                }}
                 className="w-full py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-sky-500/20 cursor-pointer flex items-center justify-center space-x-2"
               >
                 <span>{t.authGoDashboard}</span>
