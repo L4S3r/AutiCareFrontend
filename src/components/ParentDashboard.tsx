@@ -240,13 +240,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [nutritionPlan, setNutritionPlan] = useState<any>(null);
   const [loadingNutrition, setLoadingNutrition] = useState<boolean>(false);
 
-  const child = parentUser.child || {
-    name: 'Sami Al-Farsi',
-    username: 'sami_al_farsi',
-    age: '6',
-    level: 'Level 2',
-    gender: 'Male'
-  };
+  const child = parentUser.child!;
 
   const [logs, setLogs] = useState<any[]>([
     { date: '2026-06-22', mood: 'excellent', sleep: '9.0 hrs', meds: true, notes: 'Very focused in matching game, took metafolin successfully.' },

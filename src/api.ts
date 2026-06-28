@@ -7,6 +7,7 @@ export class ApiError extends Error {
   status: number;
   code: string | undefined;
   isEmailNotVerified: boolean;
+  isAccountDisabled: boolean;
 
   constructor(message: string, status: number, code?: string) {
     super(message);
@@ -18,6 +19,11 @@ export class ApiError extends Error {
       (code === 'EMAIL_NOT_VERIFIED' ||
         message.toLowerCase().includes('not verified') ||
         message.toLowerCase().includes('verification required'));
+    this.isAccountDisabled =
+      status === 403 &&
+      (code === 'ACCOUNT_DISABLED' ||
+        message.toLowerCase().includes('suspended') ||
+        message.toLowerCase().includes('disabled'));
   }
 }
 
@@ -44,6 +50,18 @@ async function request(path: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    
+    // Invalidate session locally and notify listeners of suspension
+    if (response.status === 403 && errorData.code === 'ACCOUNT_DISABLED') {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('auticare_active_user');
+        window.dispatchEvent(
+          new CustomEvent('auticare_account_disabled', { detail: errorData.error })
+        );
+      }
+    }
+
     // Propagate structured error — EMAIL_NOT_VERIFIED code is preserved as a
     // typed flag so overlay components can react without message-string matching.
     throw new ApiError(

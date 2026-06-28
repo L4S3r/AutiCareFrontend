@@ -61,6 +61,162 @@ const formatChildProfile = (dbChild: any) => {
   };
 };
 
+interface ChildOnboardingWizardProps {
+  language: Language;
+  onSuccess: (child: any) => void;
+  onLogout: () => void;
+}
+
+function ChildOnboardingWizard({ language, onSuccess, onLogout }: ChildOnboardingWizardProps) {
+  const isRtl = language === 'ar';
+  const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('male');
+  const [asdLevel, setAsdLevel] = useState('level1');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !dob) {
+      setError(isRtl ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill in all required fields');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await createPatient({
+        name,
+        dateOfBirth: dob,
+        gender,
+        asdLevel,
+      });
+      if (res.success && res.data) {
+        onSuccess(formatChildProfile(res.data));
+      } else {
+        setError(res.error || 'Failed to create child profile');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 bg-slate-900/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center antialiased font-sans">
+      <div className="max-w-md w-full bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl space-y-6 text-left">
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            {isRtl ? 'إعداد ملف الطفل 👦' : 'Child Profile Setup 👦'}
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+            {isRtl 
+              ? 'يرجى إكمال إدخال بيانات طفلك للوصول إلى لوحة التحكم.' 
+              : 'Please complete your child\'s profile details to unlock the care dashboard.'}
+          </p>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl text-center">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+              {isRtl ? 'اسم الطفل' : 'Child\'s Name'} *
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Sami"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+              {isRtl ? 'تاريخ الميلاد' : 'Date of Birth'} *
+            </label>
+            <input
+              type="date"
+              required
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                {isRtl ? 'الجنس' : 'Gender'}
+              </label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="male">{isRtl ? 'ذكر' : 'Male'}</option>
+                <option value="female">{isRtl ? 'أنثى' : 'Female'}</option>
+                <option value="other">{isRtl ? 'آخر' : 'Other'}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                {isRtl ? 'مستوى التوحد (ASD)' : 'ASD Level'}
+              </label>
+              <select
+                value={asdLevel}
+                onChange={(e) => setAsdLevel(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="level1">{isRtl ? 'المستوى ١' : 'Level 1'}</option>
+                <option value="level2">{isRtl ? 'المستوى ٢' : 'Level 2'}</option>
+                <option value="level3">{isRtl ? 'المستوى ٣' : 'Level 3'}</option>
+                <option value="not_specified">{isRtl ? 'غير محدد' : 'Not Specified'}</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-2 space-y-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed font-bold text-white transition-colors duration-200 cursor-pointer shadow-md flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  {isRtl ? 'جاري الحفظ...' : 'Saving...'}
+                </>
+              ) : (
+                isRtl ? 'حفظ وإكمال ✔️' : 'Save and Continue ✔️'
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onLogout}
+              className="w-full py-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors font-medium text-center"
+            >
+              {isRtl ? 'تسجيل الخروج والعودة' : 'Sign out and go back'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 interface AppProps {
   initialTab?: string;
 }
@@ -229,7 +385,25 @@ export default function App({ initialTab = 'home' }: AppProps) {
     };
     restoreSession();
   }, []);
+  // Listen for administrative suspension and force logout
+  useEffect(() => {
+    const handleAccountDisabled = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const errorMsg = customEvent.detail || 'Account suspended. Contact your clinical administrator.';
+      
+      setCurrentUser(null);
+      setActiveChild(null);
+      localStorage.removeItem('token');
+      localStorage.removeItem('auticare_active_user');
+      setAuthError(errorMsg);
+      setCurrentTab('login');
+    };
 
+    window.addEventListener('auticare_account_disabled', handleAccountDisabled);
+    return () => {
+      window.removeEventListener('auticare_account_disabled', handleAccountDisabled);
+    };
+  }, []);
 
   // Handle auto-scroll on direct route entry
   useEffect(() => {
@@ -315,19 +489,6 @@ export default function App({ initialTab = 'home' }: AppProps) {
 
       const regRes = await register(regData);
       if (regRes.success) {
-        if (role === 'parent') {
-          try {
-            await createPatient({
-              name: 'Sami Al-Farsi',
-              dateOfBirth: new Date(2018, 5, 22),
-              gender: 'male',
-              asdLevel: 'level2',
-              parentId: regRes.user._id
-            });
-          } catch (childErr) {
-            console.error('Failed to create default child for parent:', childErr);
-          }
-        }
         setRegisteredPlan(plan);
       }
     } catch (err: any) {
@@ -529,46 +690,58 @@ export default function App({ initialTab = 'home' }: AppProps) {
           {/* DYNAMIC COMPREHENSIVE CARE PORTAL SECTION */}
           {currentTab === 'portal' && currentUser && (
             <div className="min-h-screen">
-              {currentUser.role === 'Child' && (
-                <ChildDashboard
+              {currentUser.role === 'Parent' && !(currentUser.child || activeChild) ? (
+                <ChildOnboardingWizard
                   language={language}
-                  childUser={currentUser.child || activeChild || {
-                    name: currentUser.name || 'Sami Al-Farsi',
-                    username: currentUser.username || 'sami_al_farsi'
+                  onSuccess={(child) => {
+                    const updatedUser = { ...currentUser, child };
+                    localStorage.setItem('auticare_active_user', JSON.stringify(updatedUser));
+                    setCurrentUser(updatedUser);
+                    setActiveChild(child);
                   }}
                   onLogout={handleLogout}
                 />
-              )}
-              {currentUser.role === 'Parent' && (
-                <ParentDashboard
-                  language={language}
-                  parentUser={{
-                    ...currentUser,
-                    child: currentUser.child || activeChild
-                  }}
-                  onLogout={handleLogout}
-                />
-              )}
-              {currentUser.role === 'Doctor' && (
-                <DoctorDashboard
-                  language={language}
-                  doctorUser={currentUser}
-                  onLogout={handleLogout}
-                />
-              )}
-              {currentUser.role === 'Therapist' && (
-                <TherapistDashboard
-                  language={language}
-                  therapistUser={currentUser}
-                  onLogout={handleLogout}
-                />
-              )}
-              {currentUser.role === 'Admin' && (
-                <AdminDashboard
-                  language={language}
-                  adminUser={{ name: currentUser.name, email: currentUser.email }}
-                  onLogout={handleLogout}
-                />
+              ) : (
+                <>
+                  {currentUser.role === 'Child' && (
+                    <ChildDashboard
+                      language={language}
+                      childUser={currentUser.child || activeChild || currentUser}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                  {currentUser.role === 'Parent' && (
+                    <ParentDashboard
+                      language={language}
+                      parentUser={{
+                        ...currentUser,
+                        child: currentUser.child || activeChild
+                      }}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                  {currentUser.role === 'Doctor' && (
+                    <DoctorDashboard
+                      language={language}
+                      doctorUser={currentUser}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                  {currentUser.role === 'Therapist' && (
+                    <TherapistDashboard
+                      language={language}
+                      therapistUser={currentUser}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                  {currentUser.role === 'Admin' && (
+                    <AdminDashboard
+                      language={language}
+                      adminUser={{ name: currentUser.name, email: currentUser.email }}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                </>
               )}
             </div>
           )}
