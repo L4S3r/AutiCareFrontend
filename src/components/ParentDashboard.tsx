@@ -48,11 +48,31 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
   // Natural Language Processing Text Translation Micro-Helper
   const processVoiceInputNLP = (text: string) => {
-    // 1. Extract numerical strings following the keyword 'sleep' or 'slept'
-    const sleepMatch = text.match(/(?:sleep|slept)\s*(\d+(?:\.\d+)?)/i) || 
-                       text.match(/(\d+(?:\.\d+)?)\s*(?:hours?\s+of\s+)?(?:sleep|slept)/i);
+    const mapSpokenNumber = (word: string): string => {
+      const num = parseFloat(word);
+      if (!isNaN(num)) return num.toString();
+
+      const mapping: { [key: string]: string } = {
+        'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5',
+        'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10',
+        'eleven': '11', 'twelve': '12',
+        // Arabic words
+        'ساعة': '1', 'ساعتين': '2', 'ثلاث': '3', 'ثلاثة': '3',
+        'أربع': '4', 'أربعة': '4', 'خمس': '5', 'خمسة': '5',
+        'ست': '6', 'ستة': '6', 'سبع': '7', 'سبعة': '7',
+        'ثمان': '8', 'ثماني': '8', 'ثمانية': '8', 'تسع': '9',
+        'تسعة': '9', 'عشر': '10', 'عشرة': '10'
+      };
+
+      return mapping[word.toLowerCase().trim()] || '8';
+    };
+
+    // 1. Extract numerical strings or word numbers following the keyword 'sleep' or 'slept'
+    const wordsPattern = '\\d+(?:\\.\\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|ساعة|ساعتين|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثمانية|تسع|تسعة|عشر|عشرة';
+    const sleepMatch = text.match(new RegExp(`(?:sleep|slept)\\s*(${wordsPattern})`, 'i')) || 
+                       text.match(new RegExp(`(${wordsPattern})\\s*(?:hours?\\s+of\\s+)?(?:sleep|slept)`, 'i'));
     if (sleepMatch) {
-      setLogSleep(sleepMatch[1]);
+      setLogSleep(mapSpokenNumber(sleepMatch[1]));
     }
 
     // 2. Isolate meltdown indicators
