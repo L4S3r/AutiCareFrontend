@@ -1,9 +1,10 @@
 "use client";
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Mail, Phone, MapPin, Clock, CalendarCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, CalendarCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
+import { submitContactForm } from '../api';
 
 interface ContactProps {
   language: Language;
@@ -22,21 +23,32 @@ export default function Contact({ language }: ContactProps) {
 
   const [formSuccess, setFormSuccess] = useState(false);
   const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.message) {
       setFormError(language === 'en' ? 'Please supply at least an Email and Message before submission.' : 'يرجى إدخال البريد الإلكتروني وتفاصيل الطلب أولاً.');
       return;
     }
+    
+    setIsSubmitting(true);
     setFormError('');
-    setFormSuccess(true);
-    setFormData({ name: '', email: '', phone: '', message: '' });
+    
+    try {
+      await submitContactForm(formData);
+      setFormSuccess(true);
+      setFormData({ name: '', email: '', phone: '', message: '' });
+    } catch (err: any) {
+      setFormError(err.message || (language === 'en' ? 'An unexpected error occurred. Please try again.' : 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -110,8 +122,9 @@ export default function Contact({ language }: ContactProps) {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
+                        disabled={isSubmitting}
                         placeholder={t.placeholderEmail}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none"
+                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-60"
                       />
                     </div>
 
@@ -126,8 +139,9 @@ export default function Contact({ language }: ContactProps) {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
+                        disabled={isSubmitting}
                         placeholder={t.placeholderPhone}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none"
+                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-60"
                       />
                     </div>
 
@@ -140,20 +154,26 @@ export default function Contact({ language }: ContactProps) {
                         name="message"
                         value={formData.message}
                         onChange={handleInputChange}
+                        disabled={isSubmitting}
                         rows={4}
                         placeholder={t.placeholderMsg}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none resize-none"
+                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none resize-none disabled:opacity-60"
                       />
                     </div>
 
                     {/* Submit Button containing Checkmark matching screenshot layout */}
                     <button
                       type="submit"
-                      className="w-full sm:w-auto px-6 py-3 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-md shadow-sky-600/20"
+                      disabled={isSubmitting}
+                      className="w-full sm:w-auto px-6 py-3 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-md shadow-sky-600/20 disabled:opacity-60"
                       id="contact-form-submit-btn"
                     >
-                      <span>{t.submit}</span>
-                      <span className="font-extrabold">✓</span>
+                      <span>{isSubmitting ? (isRtl ? 'جاري الإرسال...' : 'Sending...') : t.submit}</span>
+                      {isSubmitting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <span className="font-extrabold">✓</span>
+                      )}
                     </button>
 
                   </form>

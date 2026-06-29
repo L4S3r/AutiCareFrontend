@@ -341,3 +341,10 @@ export async function uploadPatientBirthCertificate(patientId: string, file: Fil
   });
 }
 
+export async function submitContactForm(data: { name: string; email: string; phone?: string; message: string }) {
+  return request('/contact', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+

@@ -179,6 +179,8 @@ export default function Footer({ language, setCurrentTab }: FooterProps) {
               const hrefs: Record<string, string> = {
                 instagram: "https://www.instagram.com/auticare.ai/",
                 facebook: "https://www.facebook.com/profile.php?id=61591280124719",
+                youtube: "https://www.youtube.com/@AutiCare-j7y",
+                linkedin: "https://www.linkedin.com/in/auti-care-41a336419/",
               };
               return (
                 <a
