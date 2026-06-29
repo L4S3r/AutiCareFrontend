@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Mail, Phone, MapPin, Clock, CalendarCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, CalendarCheck, CheckCircle2, AlertCircle, Loader2, User } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
 import { submitContactForm } from '../api';
@@ -32,8 +32,8 @@ export default function Contact({ language }: ContactProps) {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.message) {
-      setFormError(language === 'en' ? 'Please supply at least an Email and Message before submission.' : 'يرجى إدخال البريد الإلكتروني وتفاصيل الطلب أولاً.');
+    if (!formData.name || !formData.email || !formData.message) {
+      setFormError(language === 'en' ? 'Please fill in Name, Email and Message before submission.' : 'يرجى إدخال الاسم، البريد الإلكتروني وتفاصيل الطلب أولاً.');
       return;
     }
     
@@ -110,6 +110,23 @@ export default function Contact({ language }: ContactProps) {
                         <span>{formError}</span>
                       </div>
                     )}
+
+                    {/* Name Input */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-600 flex items-center space-x-1">
+                        <User className="w-3.5 h-3.5 text-sky-500" />
+                        <span>{isRtl ? 'الاسم بالكامل *' : 'Full Name *'}</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        disabled={isSubmitting}
+                        placeholder={t.placeholderName}
+                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-60"
+                      />
+                    </div>
 
                     {/* Email Input */}
                     <div className="space-y-1.5">
