@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import {
-  Users, Calendar, Clock, LogOut, CheckCircle2,
+  Users, Calendar, Clock, LogOut, CheckCircle2, AlertCircle,
   Smile, Heart, ArrowRight, ShieldCheck, FileText, Settings,
   Activity, Sparkles, ChevronRight, UserPlus, ClipboardList, ChevronLeft,
   Plus, Upload
@@ -28,6 +28,8 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [dummyState, setDummyState] = useState(0);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
 
   const stats = [
     { label: isRtl ? 'إجمالي الحالات' : 'Total Patients', value: '18', icon: <Users className="w-5 h-5 text-sky-500" /> },
@@ -164,6 +166,19 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                   <p className="text-xs text-slate-400 font-semibold">Manage your therapist credentials and profile image.</p>
                 </div>
 
+                {uploadError && (
+                  <div className="flex items-center space-x-3 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-xs font-bold text-rose-700 animate-fade-in">
+                    <AlertCircle className="w-5 h-5 text-rose-500 flex-shrink-0" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+                {uploadSuccess && (
+                  <div className="flex items-center space-x-3 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-700 animate-fade-in">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>{uploadSuccess}</span>
+                  </div>
+                )}
+
                 <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
                   <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Therapist Profile</h4>
                   <div className="flex items-center space-x-4">
@@ -187,19 +202,22 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                           className="hidden"
                           onChange={async (e) => {
                             if (e.target.files?.[0]) {
-                              try {
-                                setLoading(true);
-                                const res = await updateProfileAvatar(e.target.files[0]);
-                                if (res.success) {
-                                  therapistUser.avatar = res.data.avatar;
-                                  setDummyState(d => d + 1);
+                                try {
+                                  setLoading(true);
+                                  setUploadError('');
+                                  setUploadSuccess('');
+                                  const res = await updateProfileAvatar(e.target.files[0]);
+                                  if (res.success) {
+                                    therapistUser.avatar = res.data.avatar;
+                                    setUploadSuccess('Profile photo updated successfully.');
+                                    setDummyState(d => d + 1);
+                                  }
+                                } catch (err: any) {
+                                  console.error(err);
+                                  setUploadError(err.message || 'Failed to upload profile photo.');
+                                } finally {
+                                  setLoading(false);
                                 }
-                              } catch (err: any) {
-                                console.error(err);
-                                window.alert(err.message || 'Failed to upload profile photo.');
-                              } finally {
-                                setLoading(false);
-                              }
                             }
                           }}
                         />

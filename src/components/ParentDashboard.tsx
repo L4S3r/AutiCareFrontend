@@ -246,6 +246,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [predictionError, setPredictionError] = useState<string>('');
   const [nutritionPlan, setNutritionPlan] = useState<any>(null);
   const [loadingNutrition, setLoadingNutrition] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string>('');
+  const [uploadSuccess, setUploadSuccess] = useState<string>('');
 
   const child = parentUser.child!;
 
@@ -470,14 +472,17 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                           if (e.target.files?.[0]) {
                             try {
                               setLoading(true);
+                              setUploadError('');
+                              setUploadSuccess('');
                               const res = await updatePatientAvatar(child.id || activeChildId, e.target.files[0]);
                               if (res.success) {
                                 child.avatar = res.data.avatar;
+                                setUploadSuccess('Child profile photo updated successfully.');
                                 setDummyState(d => d + 1);
                               }
                             } catch (err: any) {
                               console.error(err);
-                              window.alert(err.message || 'Failed to upload child profile photo.');
+                              setUploadError(err.message || 'Failed to upload child profile photo.');
                             } finally {
                               setLoading(false);
                             }
@@ -829,6 +834,19 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   <p className="text-xs text-slate-400 font-semibold">Manage your profile image and verify child details.</p>
                 </div>
 
+                {uploadError && (
+                  <div className="flex items-center space-x-3 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-xs font-bold text-rose-700 animate-fade-in">
+                    <AlertCircle className="w-5 h-5 text-rose-500 flex-shrink-0" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+                {uploadSuccess && (
+                  <div className="flex items-center space-x-3 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-700 animate-fade-in">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span>{uploadSuccess}</span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Parent Profile Card */}
                   <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
@@ -856,14 +874,17 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                               if (e.target.files?.[0]) {
                                 try {
                                   setLoading(true);
+                                  setUploadError('');
+                                  setUploadSuccess('');
                                   const res = await updateProfileAvatar(e.target.files[0]);
                                   if (res.success) {
                                     parentUser.avatar = res.data.avatar;
+                                    setUploadSuccess('Parent profile photo updated successfully.');
                                     setDummyState(d => d + 1);
                                   }
                                 } catch (err: any) {
                                   console.error(err);
-                                  window.alert(err.message || 'Failed to upload profile photo.');
+                                  setUploadError(err.message || 'Failed to upload profile photo.');
                                 } finally {
                                   setLoading(false);
                                 }
@@ -905,14 +926,17 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                               if (e.target.files?.[0]) {
                                 try {
                                   setLoading(true);
+                                  setUploadError('');
+                                  setUploadSuccess('');
                                   const res = await updatePatientAvatar(child.id || activeChildId, e.target.files[0]);
                                   if (res.success) {
                                     child.avatar = res.data.avatar;
+                                    setUploadSuccess('Child profile photo updated successfully.');
                                     setDummyState(d => d + 1);
                                   }
                                 } catch (err: any) {
                                   console.error(err);
-                                  window.alert(err.message || 'Failed to upload child profile photo.');
+                                  setUploadError(err.message || 'Failed to upload child profile photo.');
                                 } finally {
                                   setLoading(false);
                                 }
@@ -958,14 +982,17 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                             if (e.target.files?.[0]) {
                               try {
                                 setLoading(true);
+                                setUploadError('');
+                                setUploadSuccess('');
                                 const res = await uploadPatientBirthCertificate(child.id || activeChildId, e.target.files[0]);
                                 if (res.success) {
                                   child.birthCertificateUrl = res.data.birthCertificateUrl;
+                                  setUploadSuccess('Birth certificate uploaded successfully.');
                                   setDummyState(d => d + 1);
                                 }
                               } catch (err: any) {
                                 console.error(err);
-                                window.alert(err.message || 'Failed to upload birth certificate.');
+                                setUploadError(err.message || 'Failed to upload birth certificate.');
                               } finally {
                                 setLoading(false);
                               }
