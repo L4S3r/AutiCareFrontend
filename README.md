@@ -52,6 +52,7 @@ AutiCare Frontend is the web-facing dashboard of the AutiCare platform — a mul
 - 🔥 **Firebase integration** — authentication and real-time features
 - 📱 **Responsive design** — works across desktop, tablet, and mobile
 - 📸 **Multi-Tier Media Uploads** — profile picture updates with live preview and secure birth certificate verification upload for children and clinicians
+- 📩 **Secure Help & Contact Submission** — fully functional bilingual Contact Us form and Help Desk widget with submitting loader overlays, linked to the MongoDB repository and SMTP dispatcher.
 
 ---
 

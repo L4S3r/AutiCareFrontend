@@ -1,8 +1,9 @@
 "use client";
 import React, { useState } from "react";
-import { ArrowRight, CheckCircle2, User, Mail } from "lucide-react";
+import { ArrowRight, CheckCircle2, User, Mail, Loader2, AlertCircle } from "lucide-react";
 import { Language } from "../types";
 import { TRANSLATIONS } from "../data";
+import { submitContactForm } from "../api";
 
 interface HelpDeskProps {
   language: Language;
@@ -15,13 +16,31 @@ export default function HelpDesk({ language }: HelpDeskProps) {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
+    if (!email || !firstName) return;
+
+    setIsSubmitting(true);
+    setErrorMsg("");
+
+    try {
+      await submitContactForm({
+        name: firstName.trim(),
+        email: email.trim(),
+        message: isRtl 
+          ? "طلب تواصل وتلقي المساعدة عبر مكتب الدعم الفني." 
+          : "Help Desk Connection Request: Please reach out to me for assistance.",
+      });
       setSubmitted(true);
       setFirstName("");
       setEmail("");
+    } catch (err: any) {
+      setErrorMsg(err.message || (isRtl ? "فشل إرسال الطلب. يرجى المحاولة لاحقاً." : "Failed to submit request. Please try again."));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -94,7 +113,8 @@ export default function HelpDesk({ language }: HelpDeskProps) {
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder={t.placeholderName}
                 required
-                className={`w-full py-3 text-xs bg-sky-50/70 border border-sky-100/80 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none text-slate-700 font-medium placeholder-slate-400 ${
+                disabled={isSubmitting}
+                className={`w-full py-3 text-xs bg-sky-50/70 border border-sky-100/80 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none text-slate-700 font-medium placeholder-slate-400 disabled:opacity-60 ${
                   isRtl ? "pr-10 pl-4 text-right" : "pl-10 pr-4 text-left"
                 }`}
               />
@@ -113,7 +133,8 @@ export default function HelpDesk({ language }: HelpDeskProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t.placeholderEmail}
                 required
-                className={`w-full py-3 text-xs bg-sky-50/70 border border-sky-100/80 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none text-slate-700 font-medium placeholder-slate-400 ${
+                disabled={isSubmitting}
+                className={`w-full py-3 text-xs bg-sky-50/70 border border-sky-100/80 hover:border-sky-300 focus:border-sky-500 focus:bg-white rounded-xl transition-all outline-none text-slate-700 font-medium placeholder-slate-400 disabled:opacity-60 ${
                   isRtl ? "pr-10 pl-4 text-right" : "pl-10 pr-4 text-left"
                 }`}
               />
@@ -121,21 +142,33 @@ export default function HelpDesk({ language }: HelpDeskProps) {
 
             <button
               type="submit"
-              className={`w-full sm:w-auto px-6 py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-extrabold rounded-xl text-xs flex items-center justify-center transition-all cursor-pointer shadow-md shadow-slate-700/25 ${
+              disabled={isSubmitting}
+              className={`w-full sm:w-auto px-6 py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-extrabold rounded-xl text-xs flex items-center justify-center transition-all cursor-pointer shadow-md shadow-slate-700/25 disabled:opacity-60 ${
                 isRtl ? "flex-row-reverse" : "flex-row"
               }`}
               id="help-desk-submit-btn"
             >
-              <span>{t.navContact}</span>
-              <span
-                className={`w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-white ${
-                  isRtl ? "mr-2 rotate-180" : "ml-2"
-                }`}
-              >
-                <ArrowRight className="w-2.5 h-2.5" />
-              </span>
+              <span>{isSubmitting ? (isRtl ? "جاري الإرسال..." : "Sending...") : t.navContact}</span>
+              {isSubmitting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin ml-2" />
+              ) : (
+                <span
+                  className={`w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-white ${
+                    isRtl ? "mr-2 rotate-180" : "ml-2"
+                  }`}
+                >
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </span>
+              )}
             </button>
           </form>
+        )}
+
+        {errorMsg && (
+          <div className="mt-4 max-w-2xl mx-auto p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center space-x-2 text-rose-700 text-xs">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
         )}
       </div>
     </section>
