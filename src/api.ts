@@ -40,10 +40,14 @@ const getHeaders = () => {
 
 async function request(path: string, options: RequestInit = {}) {
   const url = `${BASE_URL}${path}`;
+  const headers = getHeaders();
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
   const response = await fetch(url, {
     ...options,
     headers: {
-      ...getHeaders(),
+      ...headers,
       ...options.headers,
     },
   });
@@ -76,9 +80,10 @@ async function request(path: string, options: RequestInit = {}) {
 
 // Authentication
 export async function register(data: any) {
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
   const res = await request('/auth/register', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: isFormData ? data : JSON.stringify(data),
   });
   if (res.token) {
     localStorage.setItem('token', res.token);
@@ -299,5 +304,40 @@ export async function getAdminAuditLogs() {
 // { verified: boolean, user?: object } so the App can refresh currentUser.
 export async function syncVerificationStatus(): Promise<{ verified: boolean; user?: any }> {
   return request('/auth/sync-verification-status', { method: 'POST' });
+}
+
+export async function updateProfileAvatar(file: File | null) {
+  const formData = new FormData();
+  if (file) {
+    formData.append('avatar', file);
+  } else {
+    formData.append('clear', 'true');
+  }
+  return request('/users/profile/avatar', {
+    method: 'PATCH',
+    body: formData,
+  });
+}
+
+export async function updatePatientAvatar(patientId: string, file: File | null) {
+  const formData = new FormData();
+  if (file) {
+    formData.append('avatar', file);
+  } else {
+    formData.append('clear', 'true');
+  }
+  return request(`/patients/${patientId}/avatar`, {
+    method: 'PATCH',
+    body: formData,
+  });
+}
+
+export async function uploadPatientBirthCertificate(patientId: string, file: File) {
+  const formData = new FormData();
+  formData.append('birthCertificate', file);
+  return request(`/patients/${patientId}/birth-certificate`, {
+    method: 'POST',
+    body: formData,
+  });
 }
 

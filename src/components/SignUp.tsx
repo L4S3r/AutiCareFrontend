@@ -342,18 +342,26 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
         const childUsername = `${formattedChildName}_${randomNum}`;
         const childPass = `child_${Math.floor(100000 + Math.random() * 900000)}`;
 
-        const registerRes = await register({
-          name: fullName,
-          email,
-          password,
-          role: backendRole,
-          childName: childName.trim(),
-          childAge,
-          childGender: childGender.toLowerCase(),
-          diagnosisLevel: diagnosisLevel.replace(/\s+/g, '').toLowerCase(),
-          childUsername,
-          childPassword: childPass,
-        });
+        const formData = new FormData();
+        formData.append('name', fullName);
+        formData.append('email', email);
+        formData.append('password', password);
+        formData.append('role', backendRole);
+        formData.append('childName', childName.trim());
+        formData.append('childAge', childAge);
+        formData.append('childGender', childGender.toLowerCase());
+        formData.append('diagnosisLevel', diagnosisLevel.replace(/\s+/g, '').toLowerCase());
+        formData.append('childUsername', childUsername);
+        formData.append('childPassword', childPass);
+
+        if (childPhoto) {
+          formData.append('avatar', childPhoto);
+        }
+        if (birthCert) {
+          formData.append('birthCertificate', birthCert);
+        }
+
+        const registerRes = await register(formData);
 
         if (!registerRes.success) {
           throw new Error(registerRes.error || 'Registration failed');
@@ -365,13 +373,18 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
 
       } else {
         // Clinician flow
-        const registerRes = await register({
-          name: fullName,
-          email,
-          password,
-          role: backendRole,
-          clinic: `${profTitle} - ${clinicName}`,
-        });
+        const formData = new FormData();
+        formData.append('name', fullName);
+        formData.append('email', email);
+        formData.append('password', password);
+        formData.append('role', backendRole);
+        formData.append('clinic', `${profTitle} - ${clinicName}`);
+
+        if (nationalIdDoc) formData.append('nationalIdDoc', nationalIdDoc);
+        if (medLicenseDoc) formData.append('medLicenseDoc', medLicenseDoc);
+        if (cvDoc) formData.append('cvDoc', cvDoc);
+
+        const registerRes = await register(formData);
 
         if (!registerRes.success) {
           throw new Error(registerRes.error || 'Registration failed');

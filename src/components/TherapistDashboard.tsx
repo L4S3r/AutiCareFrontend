@@ -1,13 +1,14 @@
 "use client";
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import {
   Users, Calendar, Clock, LogOut, CheckCircle2,
   Smile, Heart, ArrowRight, ShieldCheck, FileText, Settings,
-  Activity, Sparkles, ChevronRight, UserPlus, ClipboardList, ChevronLeft
+  Activity, Sparkles, ChevronRight, UserPlus, ClipboardList, ChevronLeft,
+  Plus, Upload
 } from 'lucide-react';
 import { Language } from '../types';
 import BehavioralTracker from './BehavioralTracker';
+import { updateProfileAvatar } from '../api';
 
 interface TherapistDashboardProps {
   language: Language;
@@ -15,15 +16,18 @@ interface TherapistDashboardProps {
     name: string;
     email: string;
     clinic?: string;
+    avatar?: string;
   };
   onLogout: () => void;
 }
 
 export default function TherapistDashboard({ language, therapistUser, onLogout }: TherapistDashboardProps) {
   const isRtl = language === 'ar';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'patients' | 'sessions' | 'behavior'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'patients' | 'sessions' | 'behavior' | 'settings'>('dashboard');
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [dummyState, setDummyState] = useState(0);
 
   const stats = [
     { label: isRtl ? 'إجمالي الحالات' : 'Total Patients', value: '18', icon: <Users className="w-5 h-5 text-sky-500" /> },
@@ -46,7 +50,11 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
           <div className="flex items-center justify-between gap-2">
             {!sidebarCollapsed && (
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-base">T</div>
+                {therapistUser.avatar ? (
+                  <img src={therapistUser.avatar} alt="Therapist" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-base">T</div>
+                )}
                 <span className="text-sm font-black text-white tracking-tight">AutiCare <span className="text-sky-400">Therapist</span></span>
               </div>
             )}
@@ -67,6 +75,10 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
             <button onClick={() => { setActiveTab('behavior'); setSelectedPatient(null); }} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'behavior' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
               <FileText className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && <span>Behavior Tracker</span>}
+            </button>
+            <button onClick={() => { setActiveTab('settings'); setSelectedPatient(null); }} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+              <Settings className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Profile Settings</span>}
             </button>
           </nav>
         </div>
@@ -143,6 +155,65 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
           )}
 
           {activeTab === 'behavior' && <BehavioralTracker language={language} />}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">Profile & Settings</h3>
+                  <p className="text-xs text-slate-400 font-semibold">Manage your therapist credentials and profile image.</p>
+                </div>
+
+                <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Therapist Profile</h4>
+                  <div className="flex items-center space-x-4">
+                    <div className="relative group w-20 h-20 flex-shrink-0">
+                      {therapistUser.avatar ? (
+                        <img
+                          src={therapistUser.avatar}
+                          alt={therapistUser.name}
+                          className="w-20 h-20 rounded-2xl object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center text-3xl font-black text-sky-600 border border-slate-100">
+                          {therapistUser.name.charAt(0)}
+                        </div>
+                      )}
+                      <label className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                        <Plus className="w-6 h-6 text-white" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            if (e.target.files?.[0]) {
+                              try {
+                                setLoading(true);
+                                const res = await updateProfileAvatar(e.target.files[0]);
+                                if (res.success) {
+                                  therapistUser.avatar = res.data.avatar;
+                                  setDummyState(d => d + 1);
+                                }
+                              } catch (err: any) {
+                                console.error(err);
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-700">{therapistUser.name}</p>
+                      <p className="text-xs text-slate-400 font-medium">{therapistUser.email}</p>
+                      <p className="text-xs text-sky-600 font-bold mt-1">{therapistUser.clinic || 'Clinical Behavioral Advisor'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

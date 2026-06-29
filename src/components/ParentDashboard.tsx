@@ -5,11 +5,11 @@ import {
   Smile, Brain, Target, Star, Trophy, Users, LogOut, Heart,
   Sparkles, Activity, Plus, LineChart, FileText, Settings,
   ShieldCheck, ChevronRight, CheckCircle2, AlertCircle, ChevronLeft,
-  Utensils, Pill, Ban, HelpCircle, Mic
+  Utensils, Pill, Ban, HelpCircle, Mic, Upload
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
-import { getAIPrediction, getPatients, getBehaviorLogs, createBehaviorLog, getNutritionPlans } from '../api';
+import { getAIPrediction, getPatients, getBehaviorLogs, createBehaviorLog, getNutritionPlans, updateProfileAvatar, updatePatientAvatar, uploadPatientBirthCertificate } from '../api';
 import { ResponsiveContainer, LineChart as ReLineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import AppHeader from './AppHeader';
 
@@ -18,12 +18,17 @@ interface ParentDashboardProps {
   parentUser: {
     name: string;
     email: string;
+    avatar?: string;
     child?: {
+      id?: string;
       name: string;
       username: string;
       age: string | number;
+      calculatedAge?: string | number;
       level: string;
       gender: string;
+      avatar?: string;
+      birthCertificateUrl?: string;
     };
   };
   onLogout: () => void;
@@ -33,8 +38,10 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const t = TRANSLATIONS[language];
   const isRtl = language === 'ar';
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'progress' | 'nutrition' | 'clinicians' | 'logs'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'progress' | 'nutrition' | 'clinicians' | 'logs' | 'settings'>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [dummyState, setDummyState] = useState(0);
 
   // Daily Behavior Logging Form States
   const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry' | 'distressed'>('happy');
@@ -401,13 +408,21 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
               <FileText className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && <span>Daily Logs</span>}
             </button>
+            <button onClick={() => setActiveTab('settings')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'settings' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+              <Settings className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Profile & Settings</span>}
+            </button>
           </nav>
         </div>
 
         <div className="border-t border-slate-800 pt-4 space-y-4">
           {!sidebarCollapsed && (
             <div className="flex items-center space-x-3 pl-1 truncate">
-              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-extrabold text-xs flex-shrink-0">{parentUser.name.charAt(0)}</div>
+              {parentUser.avatar ? (
+                <img src={parentUser.avatar} alt={parentUser.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-slate-700" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-extrabold text-xs flex-shrink-0">{parentUser.name.charAt(0)}</div>
+              )}
               <div className="truncate max-w-[140px]"><p className="text-xs font-extrabold text-white truncate">{parentUser.name}</p></div>
             </div>
           )}
@@ -439,7 +454,37 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
             <div className="space-y-6 animate-fade-in">
               <div className="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 rounded-3xl p-6 text-white relative shadow-lg">
                 <div className="flex flex-col sm:flex-row items-center sm:space-x-5 gap-4 relative z-10">
-                  <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-3xl font-black text-sky-600 shadow">👦</div>
+                  <div className="relative w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-3xl font-black text-sky-600 shadow overflow-hidden group">
+                    {child.avatar ? (
+                      <img src={child.avatar} alt={child.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>👦</span>
+                    )}
+                    <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                      <Plus className="w-5 h-5 text-white" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          if (e.target.files?.[0]) {
+                            try {
+                              setLoading(true);
+                              const res = await updatePatientAvatar(child.id || activeChildId, e.target.files[0]);
+                              if (res.success) {
+                                child.avatar = res.data.avatar;
+                                setDummyState(d => d + 1);
+                              }
+                            } catch (err) {
+                              console.error(err);
+                            } finally {
+                              setLoading(false);
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                   <div className="space-y-1 text-center sm:text-left">
                     <span className="bg-white/20 px-3 py-1 rounded-full text-[9px] font-extrabold uppercase">{child.level}</span>
                     <h3 className="text-xl font-black">{child.name}</h3>
@@ -771,6 +816,171 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">Profile & Settings</h3>
+                  <p className="text-xs text-slate-400 font-semibold">Manage your profile image and verify child details.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Parent Profile Card */}
+                  <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Parent Profile</h4>
+                    <div className="flex items-center space-x-4">
+                      <div className="relative group w-20 h-20 flex-shrink-0">
+                        {parentUser.avatar ? (
+                          <img
+                            src={parentUser.avatar}
+                            alt={parentUser.name}
+                            className="w-20 h-20 rounded-2xl object-cover border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center text-3xl font-black text-sky-600 border border-slate-100">
+                            {parentUser.name.charAt(0)}
+                          </div>
+                        )}
+                        <label className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                          <Plus className="w-6 h-6 text-white" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              if (e.target.files?.[0]) {
+                                try {
+                                  setLoading(true);
+                                  const res = await updateProfileAvatar(e.target.files[0]);
+                                  if (res.success) {
+                                    parentUser.avatar = res.data.avatar;
+                                    setDummyState(d => d + 1);
+                                  }
+                                } catch (err: any) {
+                                  console.error(err);
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-700">{parentUser.name}</p>
+                        <p className="text-xs text-slate-400 font-medium">{parentUser.email}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Child Profile Card */}
+                  <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Child Profile</h4>
+                    <div className="flex items-center space-x-4">
+                      <div className="relative group w-20 h-20 flex-shrink-0">
+                        {child.avatar ? (
+                          <img
+                            src={child.avatar}
+                            alt={child.name}
+                            className="w-20 h-20 rounded-2xl object-cover border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center text-3xl font-black text-sky-600 border border-slate-100">
+                            👦
+                          </div>
+                        )}
+                        <label className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                          <Plus className="w-6 h-6 text-white" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              if (e.target.files?.[0]) {
+                                try {
+                                  setLoading(true);
+                                  const res = await updatePatientAvatar(child.id || activeChildId, e.target.files[0]);
+                                  if (res.success) {
+                                    child.avatar = res.data.avatar;
+                                    setDummyState(d => d + 1);
+                                  }
+                                } catch (err: any) {
+                                  console.error(err);
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-700">{child.name}</p>
+                        <p className="text-xs text-slate-400 font-medium">Age: {child.calculatedAge || child.age} Years</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Secure Birth Certificate Ingestion */}
+                <div className="border border-slate-100 rounded-2xl p-6 space-y-4 bg-slate-50/50">
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Birth Certificate Scanning</h4>
+                    <p className="text-[11px] text-slate-400 font-medium mt-1">Upload an official document to secure and verify the patient registry profile.</p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {child.birthCertificateUrl ? (
+                      <div className="flex items-center space-x-2 bg-emerald-50 text-emerald-700 p-3 rounded-xl border border-emerald-100 text-xs font-bold w-full">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                        <div className="truncate">
+                          <p>Document Verified & Secured</p>
+                          <a href={child.birthCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] underline text-emerald-600 truncate hover:text-emerald-800">
+                            View Birth Certificate
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full">
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          id="bc-upload-input"
+                          className="hidden"
+                          onChange={async (e) => {
+                            if (e.target.files?.[0]) {
+                              try {
+                                setLoading(true);
+                                const res = await uploadPatientBirthCertificate(child.id || activeChildId, e.target.files[0]);
+                                if (res.success) {
+                                  child.birthCertificateUrl = res.data.birthCertificateUrl;
+                                  setDummyState(d => d + 1);
+                                }
+                              } catch (err: any) {
+                                console.error(err);
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('bc-upload-input')?.click()}
+                          className="w-full py-3 bg-white border border-slate-200 border-dashed rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Upload className="w-4 h-4 text-slate-400" />
+                          Upload Verification Document (PDF/Image)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
               </div>
             </div>
           )}

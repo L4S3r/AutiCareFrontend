@@ -1,14 +1,13 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   Stethoscope, Users, Calendar, Clock, LogOut, CheckCircle2,
   Dna, Heart, ArrowRight, ShieldCheck, FileText, Settings,
   Activity, Sparkles, ChevronRight, UserPlus, ChevronLeft,
-  Wand2, Check, AlertCircle
+  Wand2, Check, AlertCircle, Plus, Upload
 } from 'lucide-react';
 import { Language } from '../types';
-import { getPatients, getGeneticReports, generateNutritionPlan, approveNutritionPlan, getNutritionPlans } from '../api';
+import { getPatients, getGeneticReports, generateNutritionPlan, approveNutritionPlan, getNutritionPlans, updateProfileAvatar } from '../api';
 
 interface DoctorDashboardProps {
   language: Language;
@@ -16,14 +15,17 @@ interface DoctorDashboardProps {
     name: string;
     email: string;
     clinic?: string;
+    avatar?: string;
   };
   onLogout: () => void;
 }
 
 export default function DoctorDashboard({ language, doctorUser, onLogout }: DoctorDashboardProps) {
   const isRtl = language === 'ar';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'patients' | 'genetic'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'patients' | 'genetic' | 'settings'>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [dummyState, setDummyState] = useState(0);
 
   // Identity Provisioning Data States
   const [patientsList, setPatientsList] = useState<any[]>([]);
@@ -145,7 +147,11 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
           <div className="flex items-center justify-between gap-2">
             {!sidebarCollapsed && (
               <div className="flex items-center space-x-2.5 animate-fade-in">
-                <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-base">D</div>
+                {doctorUser.avatar ? (
+                  <img src={doctorUser.avatar} alt="Doctor" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-base">D</div>
+                )}
                 <span className="text-sm font-black text-white tracking-tight">AutiCare <span className="text-sky-400">Doctor</span></span>
               </div>
             )}
@@ -158,6 +164,10 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
             <button onClick={() => { setActiveTab('dashboard'); setSelectedPatient(null); }} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'dashboard' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
               <Activity className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && <span>Clinical Hub</span>}
+            </button>
+            <button onClick={() => { setActiveTab('settings'); setSelectedPatient(null); }} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+              <Settings className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Profile Settings</span>}
             </button>
           </nav>
         </div>
@@ -299,6 +309,65 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                       <Check className="w-4 h-4" /><span>{nutritionPlan.status === 'approved' ? 'Plan Signed & Active' : isApproving ? 'Authorizing Signatures...' : 'Approve & Release to Parent'}</span>
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">Profile & Settings</h3>
+                  <p className="text-xs text-slate-400 font-semibold">Manage your doctor credentials and profile image.</p>
+                </div>
+
+                <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Clinical Profile</h4>
+                  <div className="flex items-center space-x-4">
+                    <div className="relative group w-20 h-20 flex-shrink-0">
+                      {doctorUser.avatar ? (
+                        <img
+                          src={doctorUser.avatar}
+                          alt={doctorUser.name}
+                          className="w-20 h-20 rounded-2xl object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center text-3xl font-black text-sky-600 border border-slate-100">
+                          {doctorUser.name.charAt(0)}
+                        </div>
+                      )}
+                      <label className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                        <Plus className="w-6 h-6 text-white" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            if (e.target.files?.[0]) {
+                              try {
+                                setLoading(true);
+                                const res = await updateProfileAvatar(e.target.files[0]);
+                                if (res.success) {
+                                  doctorUser.avatar = res.data.avatar;
+                                  setDummyState(d => d + 1);
+                                }
+                              } catch (err: any) {
+                                console.error(err);
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-700">Dr. {doctorUser.name}</p>
+                      <p className="text-xs text-slate-400 font-medium">{doctorUser.email}</p>
+                      <p className="text-xs text-sky-600 font-bold mt-1">{doctorUser.clinic || 'Autism Specialty Care'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
