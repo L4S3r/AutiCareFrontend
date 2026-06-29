@@ -196,6 +196,7 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                                 }
                               } catch (err: any) {
                                 console.error(err);
+                                window.alert(err.message || 'Failed to upload profile photo.');
                               } finally {
                                 setLoading(false);
                               }

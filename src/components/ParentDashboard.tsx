@@ -475,8 +475,9 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                                 child.avatar = res.data.avatar;
                                 setDummyState(d => d + 1);
                               }
-                            } catch (err) {
+                            } catch (err: any) {
                               console.error(err);
+                              window.alert(err.message || 'Failed to upload child profile photo.');
                             } finally {
                               setLoading(false);
                             }
@@ -862,6 +863,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                                   }
                                 } catch (err: any) {
                                   console.error(err);
+                                  window.alert(err.message || 'Failed to upload profile photo.');
                                 } finally {
                                   setLoading(false);
                                 }
@@ -910,6 +912,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                                   }
                                 } catch (err: any) {
                                   console.error(err);
+                                  window.alert(err.message || 'Failed to upload child profile photo.');
                                 } finally {
                                   setLoading(false);
                                 }
@@ -962,6 +965,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                                 }
                               } catch (err: any) {
                                 console.error(err);
+                                window.alert(err.message || 'Failed to upload birth certificate.');
                               } finally {
                                 setLoading(false);
                               }

@@ -354,6 +354,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                                 }
                               } catch (err: any) {
                                 console.error(err);
+                                window.alert(err.message || 'Failed to upload profile photo.');
                               } finally {
                                 setLoading(false);
                               }
