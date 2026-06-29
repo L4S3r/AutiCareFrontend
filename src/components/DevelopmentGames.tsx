@@ -82,7 +82,7 @@ export default function DevelopmentGames({ language }: DevelopmentGamesProps) {
           try {
             await submitGameScore({
               childId: activeChildId,
-              gameName: 'shape_sorter',
+              gameName: 'shape_matching',
               score: 100,
               maxScore: 100,
               accuracyPercent: Math.round((3 / (shapeTries + 1)) * 100),
@@ -145,7 +145,7 @@ export default function DevelopmentGames({ language }: DevelopmentGamesProps) {
           try {
             await submitGameScore({
               childId: activeChildId,
-              gameName: 'brain_puzzle',
+              gameName: 'cognitive_puzzle',
               score: 100,
               maxScore: 100,
               accuracyPercent: Math.round((4 / (puzzleTries + 1)) * 100),
