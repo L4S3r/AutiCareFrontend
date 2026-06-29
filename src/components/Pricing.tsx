@@ -30,7 +30,7 @@ export default function Pricing({ language, onSelectPlan }: PricingProps) {
   const clinicalPlans = [
     {
       name: t.clinicTitle,
-      price: billingCycle === 'yearly' ? '129' : '159',
+      price: billingCycle === 'yearly' ? '1,999' : '2,499',
       desc: t.clinicDesc,
       popular: false,
       features: [
@@ -48,7 +48,7 @@ export default function Pricing({ language, onSelectPlan }: PricingProps) {
     },
     {
       name: t.hospTitle,
-      price: billingCycle === 'yearly' ? '329' : '399',
+      price: billingCycle === 'yearly' ? '4,999' : '5,999',
       desc: t.hospDesc,
       popular: true,
       features: [
@@ -89,7 +89,7 @@ export default function Pricing({ language, onSelectPlan }: PricingProps) {
   const familyPlans = [
     {
       name: t.parentTitle,
-      price: billingCycle === 'yearly' ? '29' : '39',
+      price: billingCycle === 'yearly' ? '399' : '499',
       desc: t.parentDesc,
       popular: false,
       features: [
@@ -230,7 +230,9 @@ export default function Pricing({ language, onSelectPlan }: PricingProps) {
                   </div>
 
                   <div className="flex items-baseline space-x-1">
-                    <span className="text-3xl font-extrabold text-slate-900">${plan.price}</span>
+                    <span className="text-3xl font-extrabold text-slate-900">
+                      {isRtl ? `ج.م ${plan.price}` : `${plan.price} EGP`}
+                    </span>
                     {plan.price !== 'Custom' && (
                       <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">/ Mo</span>
                     )}

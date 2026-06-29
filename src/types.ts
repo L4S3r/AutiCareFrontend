@@ -5,6 +5,7 @@ export type UserRole = 'Parent' | 'Doctor' | 'Therapist' | 'Admin' | 'Child';
 export interface GeneticReport {
   id: string;
   patientName: string;
+  laboratory?: string;
   mthfrStatus: 'Wild Type (Normal)' | 'Heterozygous (C677T)' | 'Homozygous mutant (C677T/A1298C)';
   mthfrImpact: string;
   vdrStatus: 'Ff (Normal Expression)' | 'ff (Reduced Vitamin D Receptor)' | 'FF (Enhanced Expression)';

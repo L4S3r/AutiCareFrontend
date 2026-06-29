@@ -24,6 +24,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
   const [customReportActive, setCustomReportActive] = useState(false);
   const [customFile, setCustomFile] = useState<File | null>(null);
   const [customText, setCustomText] = useState('');
+  const [customLab, setCustomLab] = useState<string>('Alfa');
 
   const reloadAll = async (childId: string) => {
     try {
@@ -58,9 +59,9 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
           'Whole Cow Milk, Casein, high-glycemic sugars'
         ];
         let mealPlan = [
-          { day: 'Monday', meals: ['Breakfast: Coconut Chia Pudding', 'Lunch: Grilled Chicken Salad', 'Dinner: Wild Salmon Mash'] },
-          { day: 'Tuesday', meals: ['Breakfast: Fluffy Grain-Free Pancakes', 'Lunch: Turkey Lettuce Wraps', 'Dinner: Organic Bone Broth bok choy'] },
-          { day: 'Wednesday', meals: ['Breakfast: Spinach Avocado Smoothie', 'Lunch: Baked Sweet Potato bowl', 'Dinner: Herb-Roasted Cod ribbons'] }
+          { day: 'Monday', meals: ['Breakfast: Ful Medames with olive oil', 'Lunch: Clean Lentil Soup', 'Dinner: Molokhia with chicken'] },
+          { day: 'Tuesday', meals: ['Breakfast: Local flatbread and white cheese', 'Lunch: Sprouted local grain salad', 'Dinner: Baked local fish'] },
+          { day: 'Wednesday', meals: ['Breakfast: Chickpea dip with flatbread', 'Lunch: Warm Lentil Soup', 'Dinner: Grilled chicken with rice'] }
         ];
 
         if (matchingPlan && matchingPlan.aiRecommendation) {
@@ -174,7 +175,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
       if (customFile) {
         // Upload the actual file for Gemini Multimodal OCR processing
         console.log('📤 Uploading genetic file for processing...');
-        const res = await uploadGeneticReportFile(activeChildId, customFile, customText || 'Uploaded genetic report');
+        const res = await uploadGeneticReportFile(activeChildId, customFile, customText || 'Uploaded genetic report', customLab);
         if (res.success) {
           parsedReport = res.data;
         }
@@ -187,7 +188,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
           { marker: 'HLA-DQ2', result: 'positive', value: 'HLA-DQ2 Positive', notes: 'Autoimmune gluten inflammatory trace' }
         ];
 
-        const res = await uploadGeneticReport(activeChildId, markers, customText || 'Manual upload descriptors');
+        const res = await uploadGeneticReport(activeChildId, markers, customText || 'Manual upload descriptors', customLab);
         if (res.success) {
           parsedReport = res.data;
         }
@@ -285,6 +286,21 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
                 <p className="text-[8px] text-slate-400 mt-0.5">PDF or TXT sequencing outcomes</p>
               </div>
 
+              {/* Select laboratory dropdown */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400">Select Source Laboratory</label>
+                <select
+                  value={customLab}
+                  onChange={(e) => setCustomLab(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-sky-500 font-bold text-slate-700"
+                >
+                  <option value="Alfa">Alfa Laboratories</option>
+                  <option value="Al-Borg">Al-Borg Laboratories</option>
+                  <option value="GASC">GASC Lab Network</option>
+                  <option value="Unknown">Other / Unknown</option>
+                </select>
+              </div>
+
               {/* Text field content */}
               <textarea
                 value={customText}
@@ -317,6 +333,10 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
                 <div className="flex justify-between text-[10px] font-bold text-slate-400 font-mono">
                   <span>METABOLISM TYPE:</span>
                   <span className="text-sky-600">GFCF SPECIFIC</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold text-slate-400 font-mono">
+                  <span>SOURCE LABORATORY:</span>
+                  <span className="text-emerald-600 uppercase font-black">{report?.laboratory || 'Unknown'}</span>
                 </div>
               </div>
             </div>

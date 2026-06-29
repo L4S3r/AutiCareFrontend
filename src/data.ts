@@ -638,9 +638,9 @@ export const SAMPLE_GENETIC_REPORTS: GeneticReport[] = [
       'Preservatives-rich baked treats, sugary drinks, high-fructose corn syrup.'
     ],
     mealPlan: [
-      { day: 'Monday', meals: ['Breakfast: Coconut Chia Pudding with Fresh Raspberries', 'Lunch: Grilled Chicken Salad with Olive Oil and Sprouted Greens', 'Dinner: Wild Salmon over Steamed Cauliflower Mash'] },
-      { day: 'Tuesday', meals: ['Breakfast: Fluffy Grain-Free Banana Pancakes', 'Lunch: Turkey Lettuce Wraps with Avocado Aioli', 'Dinner: Organic Beef Bone Broth Soup with Bok Choy'] },
-      { day: 'Wednesday', meals: ['Breakfast: Spinach and Avocado Smoothie with Pumpkin Seeds', 'Lunch: Baked Sweet Potato with Shredded Carrot and Seed Butter', 'Dinner: Herb-Roasted Cod with Zucchini ribbons'] }
+      { day: 'Monday', meals: ['Breakfast: Ful Medames cooked with pure olive oil', 'Lunch: Clean Lentil Soup with local sprouted wheat flatbread', 'Dinner: Molokhia with grilled chicken breast and sprouted local grains'] },
+      { day: 'Tuesday', meals: ['Breakfast: Sprouted local grain flatbread with white cheese and cucumber', 'Lunch: Sprouted local grain salad with olive oil dressing', 'Dinner: Clean local baked fish with steamed veggies and herbs'] },
+      { day: 'Wednesday', meals: ['Breakfast: Warm chickpea dip with olive oil and clean local flatbread', 'Lunch: Lentil soup with greens and herbs', 'Dinner: Grilled chicken skewers with roasted green beans and sprouted rice'] }
     ]
   },
   {

@@ -181,23 +181,27 @@ export async function getGeneticReports(childId: string) {
   return request(`/genetic/${childId}`);
 }
 
-export async function uploadGeneticReport(childId: string, manualMarkers: any, notes: string) {
+export async function uploadGeneticReport(childId: string, manualMarkers: any, notes: string, laboratory?: string) {
   return request('/genetic/upload', {
     method: 'POST',
     body: JSON.stringify({
       childId,
       manualMarkers: JSON.stringify(manualMarkers),
       notes,
+      laboratory,
     }),
   });
 }
 
-export async function uploadGeneticReportFile(childId: string, file: File, notes: string) {
+export async function uploadGeneticReportFile(childId: string, file: File, notes: string, laboratory?: string) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const formData = new FormData();
   formData.append('childId', childId);
   formData.append('reportFile', file);
   formData.append('notes', notes);
+  if (laboratory) {
+    formData.append('laboratory', laboratory);
+  }
 
   const headers: Record<string, string> = {};
   if (token) {

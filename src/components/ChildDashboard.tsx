@@ -48,6 +48,24 @@ export default function ChildDashboard({ language, childUser, onLogout }: ChildD
       color: 'from-amber-100 to-amber-200/50 border-amber-200 shadow-sm',
       badge: isRtl ? 'ألعاب سرعة' : 'Speed Reflex',
       emoji: '🎈'
+    },
+    {
+      id: 'shape_sorter',
+      title: isRtl ? 'فرز الأشكال' : 'Shape Sorter',
+      desc: isRtl ? 'طابق الأشكال الملونة وظلالها لتدريب انتباهك!' : 'Arrange shapes by their types and shadows!',
+      icon: <Star className="w-8 h-8 text-indigo-500" />,
+      color: 'from-indigo-100 to-indigo-200/50 border-indigo-200 shadow-sm',
+      badge: isRtl ? 'تطابق حسي' : 'Sensory Matching',
+      emoji: '🔷'
+    },
+    {
+      id: 'brain_puzzle',
+      title: isRtl ? 'تركيب الأحجية' : 'Brain Puzzle',
+      desc: isRtl ? 'حل القطع المتداخلة لترتيب صورة الحيوان!' : 'Solve interactive animal puzzle block positions!',
+      icon: <Trophy className="w-8 h-8 text-rose-500" />,
+      color: 'from-rose-100 to-rose-200/50 border-rose-200 shadow-sm',
+      badge: isRtl ? 'تفكير منطقي' : 'Logical Thinking',
+      emoji: '🧩'
     }
   ];
 

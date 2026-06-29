@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Award, RefreshCw, Smile, Brain, Heart, Star, Dna, Play, Target, Timer } from 'lucide-react';
+import { Award, RefreshCw, Smile, Brain, Heart, Star, Dna, Play, Target, Timer, Trophy } from 'lucide-react';
 import { GameScore, Language } from '../types';
 import { TRANSLATIONS } from '../data';
 import { submitGameScore, getGameScores, getPatients } from '../api';
@@ -31,7 +31,7 @@ export default function DevelopmentGames({ language }: DevelopmentGamesProps) {
   const t = TRANSLATIONS[language];
   const isRtl = language === 'ar';
 
-  const [activeGame, setActiveGame] = useState<'memory' | 'emotion' | 'bubbles'>('memory');
+  const [activeGame, setActiveGame] = useState<'memory' | 'emotion' | 'bubbles' | 'shape_sorter' | 'brain_puzzle'>('memory');
   const [highScore, setHighScore] = useState<number>(140);
   const [activeChildId, setActiveChildId] = useState<string>('');
   const [scoreHistory, setScoreHistory] = useState<any[]>([]);
@@ -43,6 +43,123 @@ export default function DevelopmentGames({ language }: DevelopmentGamesProps) {
   const [cards, setCards] = useState<CardType[]>([]);
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [tries, setTries] = useState(0);
+
+  // ----------------------------------------------------
+  // GAME 4: SHAPE SORTER STATES & LOGIC
+  // ----------------------------------------------------
+  const [shapeMatches, setShapeMatches] = useState<{ circle: boolean; triangle: boolean; square: boolean }>({ circle: false, triangle: false, square: false });
+  const [selectedShape, setSelectedShape] = useState<string | null>(null);
+  const [shapeTries, setShapeTries] = useState(0);
+  const [shapeWon, setShapeWon] = useState(false);
+  const [shapeStartTime, setShapeStartTime] = useState(Date.now());
+
+  const resetShapeSorter = () => {
+    setShapeMatches({ circle: false, triangle: false, square: false });
+    setSelectedShape(null);
+    setShapeTries(0);
+    setShapeWon(false);
+    setShapeStartTime(Date.now());
+  };
+
+  const handleShapeSelect = (shape: string) => {
+    if (shapeMatches[shape as keyof typeof shapeMatches]) return;
+    setSelectedShape(shape);
+  };
+
+  const handleSlotSelect = async (slot: string) => {
+    if (!selectedShape) return;
+    setShapeTries(prev => prev + 1);
+
+    if (selectedShape === slot) {
+      const nextMatches = { ...shapeMatches, [slot]: true };
+      setShapeMatches(nextMatches);
+      setSelectedShape(null);
+
+      if (nextMatches.circle && nextMatches.triangle && nextMatches.square) {
+        setShapeWon(true);
+        const completionTime = Math.max(1, Math.round((Date.now() - shapeStartTime) / 1000));
+        if (activeChildId) {
+          try {
+            await submitGameScore({
+              childId: activeChildId,
+              gameName: 'shape_sorter',
+              score: 100,
+              maxScore: 100,
+              accuracyPercent: Math.round((3 / (shapeTries + 1)) * 100),
+              level: 1,
+              completionTime,
+            });
+            loadScores(activeChildId);
+          } catch (e) {
+            console.error('Failed to log shape sorter score:', e);
+          }
+        }
+      }
+    } else {
+      setSelectedShape(null);
+    }
+  };
+
+  // ----------------------------------------------------
+  // GAME 5: BRAIN PUZZLE STATES & LOGIC
+  // ----------------------------------------------------
+  const [puzzleTiles, setPuzzleTiles] = useState<number[]>([0, 1, 2, 3]);
+  const [selectedTile, setSelectedTile] = useState<number | null>(null);
+  const [puzzleTries, setPuzzleTries] = useState(0);
+  const [puzzleWon, setPuzzleWon] = useState(false);
+  const [puzzleStartTime, setPuzzleStartTime] = useState(Date.now());
+
+  const resetBrainPuzzle = () => {
+    let shuffled = [0, 1, 2, 3];
+    while (JSON.stringify(shuffled) === JSON.stringify([0, 1, 2, 3])) {
+      shuffled = [...shuffled].sort(() => Math.random() - 0.5);
+    }
+    setPuzzleTiles(shuffled);
+    setSelectedTile(null);
+    setPuzzleTries(0);
+    setPuzzleWon(false);
+    setPuzzleStartTime(Date.now());
+  };
+
+  const handleTileClick = async (index: number) => {
+    if (puzzleWon) return;
+    if (selectedTile === null) {
+      setSelectedTile(index);
+    } else {
+      if (selectedTile === index) {
+        setSelectedTile(null);
+        return;
+      }
+      setPuzzleTries(prev => prev + 1);
+      const newTiles = [...puzzleTiles];
+      const temp = newTiles[selectedTile];
+      newTiles[selectedTile] = newTiles[index];
+      newTiles[index] = temp;
+      setPuzzleTiles(newTiles);
+      setSelectedTile(null);
+
+      if (JSON.stringify(newTiles) === JSON.stringify([0, 1, 2, 3])) {
+        setPuzzleWon(true);
+        const completionTime = Math.max(1, Math.round((Date.now() - puzzleStartTime) / 1000));
+        if (activeChildId) {
+          try {
+            await submitGameScore({
+              childId: activeChildId,
+              gameName: 'brain_puzzle',
+              score: 100,
+              maxScore: 100,
+              accuracyPercent: Math.round((4 / (puzzleTries + 1)) * 100),
+              level: 1,
+              completionTime,
+            });
+            loadScores(activeChildId);
+          } catch (e) {
+            console.error('Failed to log brain puzzle score:', e);
+          }
+        }
+      }
+    }
+  };
   const [matchesCount, setMatchesCount] = useState(0);
   const [won, setWon] = useState(false);
 
@@ -393,6 +510,28 @@ export default function DevelopmentGames({ language }: DevelopmentGamesProps) {
             <Target className="w-3.5 h-3.5" />
             <span>{isRtl ? 'فقاعات الانتباه' : 'Attention Bubbles'}</span>
           </button>
+          <button
+            onClick={() => { setActiveGame('shape_sorter'); endBubbleGame(); resetShapeSorter(); }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+              activeGame === 'shape_sorter'
+                ? 'bg-sky-500 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5" />
+            <span>{isRtl ? 'فرز الأشكال' : 'Shape Sorter'}</span>
+          </button>
+          <button
+            onClick={() => { setActiveGame('brain_puzzle'); endBubbleGame(); resetBrainPuzzle(); }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+              activeGame === 'brain_puzzle'
+                ? 'bg-sky-500 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>{isRtl ? 'تركيب الأحجية' : 'Brain Puzzle'}</span>
+          </button>
         </div>
       </div>
 
@@ -607,6 +746,143 @@ export default function DevelopmentGames({ language }: DevelopmentGamesProps) {
                       {isRtl ? 'فرقع فقط الفقاعات ذات اللون الصحيح. الألوان الأخرى تخصم نقاط!' : 'Only pop matching target color bubbles. Other colors decrease score!'}
                     </div>
 
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* GAME 4: SHAPE SORTER */}
+            {activeGame === 'shape_sorter' && (
+              <motion.div
+                key="shape-sorter-game"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="w-full flex flex-col items-center space-y-6"
+              >
+                {shapeWon ? (
+                  <div className="text-center space-y-4 py-8">
+                    <span className="text-5xl animate-bounce block">🏆🔷🌟</span>
+                    <h4 className="text-lg font-black text-emerald-700">{isRtl ? 'رائع جداً! تطابقت كل الأشكال!' : 'Superb! All Shapes Sorter Complete!'}</h4>
+                    <p className="text-xs text-slate-500">Perfect alignment. Telemetry scores synced to therapist portal.</p>
+                    <button
+                      onClick={resetShapeSorter}
+                      className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-full text-xs cursor-pointer shadow-md transition-all flex items-center space-x-1.5 mx-auto"
+                    >
+                      <RefreshCw className="w-4 h-4 text-white" />
+                      <span>{isRtl ? 'اللعب من جديد' : 'Play Again'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-8 w-full max-w-sm flex flex-col items-center">
+                    <p className="text-xs font-semibold text-slate-500 text-center">
+                      {isRtl ? 'اضغط على الشكل بالأسفل ثم اضغط على الظل المناسب له بالأعلى!' : 'Tap a colored shape below, then tap its matching shadow outlines!'}
+                    </p>
+
+                    {/* Target Slots */}
+                    <div className="flex justify-around w-full">
+                      {['circle', 'triangle', 'square'].map((shape) => {
+                        const isMatched = shapeMatches[shape as keyof typeof shapeMatches];
+                        return (
+                          <button
+                            key={shape}
+                            onClick={() => handleSlotSelect(shape)}
+                            className={`w-20 h-20 rounded-2xl border-2 border-dashed flex items-center justify-center transition-all ${
+                              isMatched 
+                                ? 'bg-sky-50 border-sky-300' 
+                                : 'bg-slate-100 border-slate-300 hover:border-sky-400 hover:bg-slate-50'
+                            }`}
+                          >
+                            {isMatched ? (
+                              <span className="text-3xl">
+                                {shape === 'circle' ? '🔴' : shape === 'triangle' ? '🔵' : '🟢'}
+                              </span>
+                            ) : (
+                              <span className="text-2xl opacity-20 filter grayscale">
+                                {shape === 'circle' ? '⭕' : shape === 'triangle' ? '🔺' : '⬛'}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Source Draggables */}
+                    <div className="flex justify-around w-full pt-4 border-t border-slate-100">
+                      {['circle', 'triangle', 'square'].map((shape) => {
+                        const isMatched = shapeMatches[shape as keyof typeof shapeMatches];
+                        const isSelected = selectedShape === shape;
+                        if (isMatched) return <div key={shape} className="w-16 h-16" />;
+                        return (
+                          <button
+                            key={shape}
+                            onClick={() => handleShapeSelect(shape)}
+                            className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-bold cursor-pointer transition-all transform hover:scale-105 active:scale-95 shadow-sm ${
+                              isSelected
+                                ? 'bg-sky-200 border-4 border-sky-500 scale-110'
+                                : 'bg-white border border-slate-200'
+                            }`}
+                          >
+                            {shape === 'circle' ? '🔴' : shape === 'triangle' ? '🔵' : '🟢'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* GAME 5: BRAIN PUZZLE */}
+            {activeGame === 'brain_puzzle' && (
+              <motion.div
+                key="brain-puzzle-game"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="w-full flex flex-col items-center space-y-6"
+              >
+                {puzzleWon ? (
+                  <div className="text-center space-y-4 py-8">
+                    <span className="text-5xl animate-bounce block">🏆🧩🌟</span>
+                    <h4 className="text-lg font-black text-emerald-700">{isRtl ? 'يا لك من ذكي! اكتملت الأحجية!' : 'Fantastic! Brain Puzzle Solved!'}</h4>
+                    <p className="text-xs text-slate-500">All blocks aligned correctly in {puzzleTries} swaps.</p>
+                    <button
+                      onClick={resetBrainPuzzle}
+                      className="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-full text-xs cursor-pointer shadow-md transition-all flex items-center space-x-1.5 mx-auto"
+                    >
+                      <RefreshCw className="w-4 h-4 text-white" />
+                      <span>{isRtl ? 'اللعب من جديد' : 'Play Again'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6 w-full max-w-sm flex flex-col items-center">
+                    <p className="text-xs font-semibold text-slate-500 text-center">
+                      {isRtl ? 'اضغط على قطعة ثم قطعة أخرى لتبديل مكانهما وترتيب الصورة!' : 'Tap one tile, then tap another to swap them and build the puzzle!'}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3 w-60 h-60">
+                      {puzzleTiles.map((tileVal, idx) => {
+                        const isSelected = selectedTile === idx;
+                        // Colorful representation or slice numbers to represent a unified puzzle
+                        const colorMap = ['bg-sky-400', 'bg-emerald-400', 'bg-amber-400', 'bg-rose-400'];
+                        const emojiMap = ['🐱', '🐰', '🦁', '🐻'];
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleTileClick(idx)}
+                            className={`rounded-2xl flex flex-col items-center justify-center text-3xl transition-all transform shadow cursor-pointer text-white relative ${
+                              colorMap[tileVal]
+                            } ${
+                              isSelected ? 'border-4 border-white scale-95 shadow-inner' : 'hover:scale-[1.02]'
+                            }`}
+                          >
+                            <span>{emojiMap[tileVal]}</span>
+                            <span className="text-[10px] opacity-75 font-mono absolute bottom-2 right-3">#{tileVal + 1}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </motion.div>
