@@ -469,7 +469,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                             )}
 
                             {/* Main User Controls Table */}
-                            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden space-y-4">
+                            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-visible space-y-4">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <h3 className="text-xs font-mono font-black text-slate-400 uppercase tracking-widest">Identity Provisioning Layer</h3>
                                     <div className="flex gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
@@ -494,7 +494,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                 ) : usersList.length === 0 ? (
                                     <div className="text-center py-10 text-slate-400 text-xs font-semibold">No nodes registered under selected category.</div>
                                 ) : (
-                                    <div className="overflow-x-auto">
+                                    <div className="overflow-x-auto pb-24">
                                         <table className="w-full text-xs text-left">
                                             <thead>
                                                 <tr className="border-b border-slate-100 font-black text-slate-400 uppercase text-[10px]">
@@ -506,7 +506,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {usersList.map((user) => (
+                                                {usersList.map((user, idx) => (
                                                     <tr key={user._id} className="border-b border-slate-50 text-slate-600 hover:bg-slate-50/30 transition-colors relative">
                                                         <td className="py-3">
                                                             <div className="flex items-center space-x-2.5">
@@ -569,7 +569,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                                 </button>
                                                                 
                                                                 {activeDropdownId === user._id && (
-                                                                    <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 font-sans text-xs">
+                                                                    <div className={`absolute right-0 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 font-sans text-xs ${idx >= usersList.length - 2 ? 'bottom-full mb-2 origin-bottom' : 'top-full mt-2'}`}>
                                                                         <button 
                                                                             onClick={() => handleToggleUserNode(user._id, user.isActive)} 
                                                                             className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 text-slate-700 cursor-pointer"
