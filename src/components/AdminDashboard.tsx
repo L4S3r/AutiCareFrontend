@@ -508,7 +508,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                             <tbody>
                                                 {usersList.map((user, idx) => (
                                                     <tr key={user._id} className="border-b border-slate-50 text-slate-600 hover:bg-slate-50/30 transition-colors relative">
-                                                        <td className="py-3">
+                                                        <td className="py-6">
                                                             <div className="flex items-center space-x-2.5">
                                                                 {user.avatar ? (
                                                                     <img src={user.avatar} className="w-8 h-8 rounded-full object-cover border border-slate-200" alt={user.name} />
@@ -520,7 +520,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                                 <span className="font-bold text-slate-800">{user.name}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="py-3">
+                                                        <td className="py-6">
                                                             <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase ${
                                                                 user.role === 'doctor' ? 'bg-blue-50 text-blue-600' :
                                                                 user.role === 'therapist' ? 'bg-purple-50 text-purple-600' :
@@ -529,10 +529,10 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                                 {user.role}
                                                             </span>
                                                         </td>
-                                                        <td className="py-3 font-mono text-slate-400">
+                                                        <td className="py-6 font-mono text-slate-400">
                                                             {user.role === 'child' ? (user.username || 'No username') : (user.email || 'No email')}
                                                         </td>
-                                                        <td className="py-3 font-bold">
+                                                        <td className="py-6 font-bold">
                                                             {(() => {
                                                                 if (!user.isActive) {
                                                                     return <span className="text-rose-500">Suspended</span>;
@@ -559,7 +559,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                                 return <span className="text-emerald-500">Active</span>;
                                                             })()}
                                                         </td>
-                                                        <td className="py-3 text-right relative">
+                                                        <td className="py-6 text-right relative">
                                                             <div className="inline-block text-left">
                                                                 <button
                                                                     onClick={() => setActiveDropdownId(activeDropdownId === user._id ? null : user._id)}
@@ -569,7 +569,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                                 </button>
                                                                 
                                                                 {activeDropdownId === user._id && (
-                                                                    <div className={`absolute right-0 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 font-sans text-xs ${idx >= usersList.length - 2 ? 'bottom-full mb-2 origin-bottom' : 'top-full mt-2'}`}>
+                                                                    <div className="absolute right-0 top-10 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-[9999] py-1 font-sans text-xs">
                                                                         <button 
                                                                             onClick={() => handleToggleUserNode(user._id, user.isActive)} 
                                                                             className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 text-slate-700 cursor-pointer"
