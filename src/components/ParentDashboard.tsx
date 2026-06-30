@@ -689,7 +689,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                 </h4>
                 <AnimatePresence mode="wait">
                   {loadingPrediction ? (
-                    <div className="flex items-center space-x-3 p-4 bg-slate-50 rounded-2xl border border-slate-100"><div className="w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" /><span className="text-xs font-bold font-mono text-slate-500">Processing baseline indicators...</span></div>
+                    <div className="w-full p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl animate-shimmer h-24" />
                   ) : predictionError ? (
                     <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100"><AlertCircle className="w-5 h-5 text-amber-500" /><span className="text-xs font-bold text-amber-700">{predictionError}</span></div>
                   ) : predictionData ? (
@@ -710,7 +710,14 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
           {activeTab === 'nutrition' && (
             <div className="space-y-6 animate-fade-in">
               {loadingNutrition ? (
-                <div className="p-12 text-center text-slate-400 font-mono text-xs">Accessing encrypted medical framework profiles...</div>
+                <div className="space-y-4">
+                  <div className="h-12 w-full animate-shimmer rounded-2xl" />
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="h-48 w-full animate-shimmer rounded-3xl" />
+                    <div className="h-48 w-full animate-shimmer rounded-3xl" />
+                    <div className="h-48 w-full animate-shimmer rounded-3xl" />
+                  </div>
+                </div>
               ) : nutritionPlan ? (
                 <div className="space-y-6">
                   <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col sm:flex-row justify-between sm:items-center gap-2">

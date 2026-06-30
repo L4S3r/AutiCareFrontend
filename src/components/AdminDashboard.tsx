@@ -290,7 +290,11 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                             </div>
 
                             {loadingUsers ? (
-                                <div className="text-center py-10 font-mono text-xs text-slate-400">Loading directory listings...</div>
+                                <div className="space-y-3 p-2">
+                                    <div className="h-7 w-full animate-shimmer rounded-xl" />
+                                    <div className="h-7 w-full animate-shimmer rounded-xl" />
+                                    <div className="h-7 w-full animate-shimmer rounded-xl" />
+                                </div>
                             ) : usersList.length === 0 ? (
                                 <div className="text-center py-10 text-slate-400 text-xs font-semibold">No nodes registered under selected category.</div>
                             ) : (
@@ -351,7 +355,11 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden space-y-4">
                             <h3 className="text-xs font-mono font-black text-slate-400 uppercase tracking-widest">Immutable Audit Ledger Trail</h3>
                             {loadingAudit ? (
-                                <div className="text-center py-10 font-mono text-xs text-slate-400">Accessing audit trails...</div>
+                                <div className="space-y-3 p-2">
+                                    <div className="h-10 w-full animate-shimmer rounded-xl" />
+                                    <div className="h-10 w-full animate-shimmer rounded-xl" />
+                                    <div className="h-10 w-full animate-shimmer rounded-xl" />
+                                </div>
                             ) : auditList.length === 0 ? (
                                 <div className="text-center py-10 text-slate-400 text-xs font-semibold">No transactions recorded in ledger.</div>
                             ) : (

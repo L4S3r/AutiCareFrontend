@@ -7,6 +7,195 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+:root {
+  /* Light mode design tokens */
+  --color-brand-primary: #2563eb;
+  --color-brand-dark: #1e3a8f;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-sky-light: #e0f2fe;
+  --color-sky-lighter: #f0f9ff;
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-surface-2: #f8fafc;
+  --color-teal: #0d9488;
+  --color-amber: #d97706;
+
+  --radius-btn: 0.5rem;
+}
+
+.dark {
+  /* Dark mode design tokens overrides */
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-sky-light: #1e293b;
+  --color-sky-lighter: #0f172a;
+  --color-border: #334155;
+  --color-border-light: #1e293b;
+  --color-surface-2: #1e293b;
+}
+
+/* Premium Button Components */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  border: 1px solid transparent;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  border-radius: var(--radius-btn);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  outline: none;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.btn-primary {
+  background-color: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.15), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.25), 0 4px 6px -2px rgba(37, 99, 235, 0.15);
+}
+
+.btn-amber {
+  background-color: var(--color-amber);
+  border-color: var(--color-amber);
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.15), 0 2px 4px -1px rgba(217, 119, 6, 0.1);
+}
+
+.btn-amber:hover {
+  background-color: #b45309;
+  border-color: #b45309;
+  box-shadow: 0 10px 15px -3px rgba(217, 119, 6, 0.25), 0 4px 6px -2px rgba(217, 119, 6, 0.15);
+}
+
+.btn-outline-light {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.btn-outline-light:hover {
+  background-color: var(--color-surface-2);
+  border-color: var(--color-text-muted);
+  color: var(--color-text-primary);
+}
+
+/* Premium Form Inputs */
+.input {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-text-primary);
+  background-color: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+}
+
+.dark .input {
+  background-color: #1e293b;
+  color: #f8fafc;
+}
+
+.input:focus {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Micro-interaction classes */
+.btn:hover {
+  transform: translateY(-1px) scale(1.02);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* Card Hover-Lift micro-interaction */
+.card-blue, .card-green, .card-amber, .card-rose, .card, .hover-lift, div[class*="rounded-xl border border-"] {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
+}
+
+.card-blue:hover, .card-green:hover, .card-amber:hover, .card-rose:hover, .card:hover, .hover-lift:hover, div[class*="rounded-xl border border-"]:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -8px rgba(37, 99, 235, 0.15);
+  border-color: var(--color-brand-primary);
+  cursor: pointer;
+}
+
+/* Animations and Keyframes */
+@utility animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 25%,
+    #e2e8f0 50%,
+    #f1f5f9 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+.dark .animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    #1e293b 25%,
+    #334155 50%,
+    #1e293b 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 /* Custom scrollbar configurations */
 .scrollbar-none::-webkit-scrollbar {
   display: none;

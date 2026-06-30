@@ -6,6 +6,61 @@ import { GeneticReport, Language } from '../types';
 import { SAMPLE_GENETIC_REPORTS, TRANSLATIONS } from '../data';
 import { getGeneticReports, uploadGeneticReport, getPatients, uploadGeneticReportFile, getNutritionPlans, generateNutritionPlan } from '../api';
 
+function DnaHelixLoader() {
+  const dots = Array.from({ length: 12 });
+  return (
+    <div className="flex items-center justify-center space-x-2.5 h-20 py-4 my-2 select-none">
+      {dots.map((_, i) => (
+        <div key={i} className="flex flex-col items-center justify-between h-full relative w-3">
+          <motion.div
+            animate={{
+              y: [0, 32, 0],
+              scale: [1, 0.5, 1],
+              backgroundColor: ["#3b82f6", "#8b5cf6", "#3b82f6"],
+              zIndex: [10, 0, 10]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.15
+            }}
+            className="w-2 h-2 rounded-full shadow-sm"
+          />
+          <motion.div
+            animate={{
+              height: [32, 0, 32],
+              opacity: [0.4, 0.05, 0.4]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.15
+            }}
+            className="w-[1.5px] bg-slate-200 dark:bg-slate-700 my-0.5"
+          />
+          <motion.div
+            animate={{
+              y: [0, -32, 0],
+              scale: [0.5, 1, 0.5],
+              backgroundColor: ["#8b5cf6", "#3b82f6", "#8b5cf6"],
+              zIndex: [0, 10, 0]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.15
+            }}
+            className="w-2 h-2 rounded-full shadow-sm"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface GeneticAIExplorerProps {
   language: Language;
 }
@@ -374,7 +429,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
                 exit={{ opacity: 0 }}
                 className="bg-slate-50/50 rounded-3xl p-12 border border-slate-100 text-center space-y-4"
               >
-                <RefreshCw className="w-10 h-10 text-sky-500 animate-spin mx-auto" />
+                <DnaHelixLoader />
                 <div>
                   <h4 className="text-base font-bold text-slate-800">AI Recommendation Engine Parsing...</h4>
                   <p className="text-xs text-slate-400 mt-1">Extracting genetic markers via rule models, formulating meal exclusion rules from HIPAA blueprints.</p>

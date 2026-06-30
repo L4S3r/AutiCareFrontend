@@ -208,7 +208,11 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
               <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden">
                 <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase mb-4">Assigned Cases Directory</h3>
                 {loadingPatients ? (
-                  <div className="p-6 text-center text-slate-400 text-xs font-mono">Running secure HIPAA context queries...</div>
+                  <div className="space-y-3 p-2">
+                    <div className="h-7 w-full animate-shimmer rounded-xl" />
+                    <div className="h-7 w-full animate-shimmer rounded-xl" />
+                    <div className="h-7 w-full animate-shimmer rounded-xl" />
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left">
