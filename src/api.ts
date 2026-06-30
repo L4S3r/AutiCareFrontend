@@ -298,6 +298,23 @@ export async function getAdminAuditLogs() {
   return request('/admin/audit');
 }
 
+export async function changeUserPassword(id: string, password: string) {
+  return request(`/admin/users/${id}/password`, {
+    method: 'PUT',
+    body: JSON.stringify({ password }),
+  });
+}
+
+export async function bypassVerification(id: string) {
+  return request(`/admin/users/${id}/verify-bypass`, {
+    method: 'PUT',
+  });
+}
+
+export async function getUnverifiedPractitioners() {
+  return request('/admin/users/unverified-practitioners');
+}
+
 // ─── Verification Sync ────────────────────────────────────────────────────────
 // Called by the email-not-verified overlay button to ask the backend whether
 // the user has clicked their verification link since last login. Returns

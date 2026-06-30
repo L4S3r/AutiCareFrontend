@@ -137,6 +137,11 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
   const [medLicenseDoc, setMedLicenseDoc] = useState<File | null>(null);
   const [cvDoc, setCvDoc] = useState<File | null>(null);
 
+  // Therapist Specific
+  const [nationalIdFront, setNationalIdFront] = useState<File | null>(null);
+  const [nationalIdBack, setNationalIdBack] = useState<File | null>(null);
+  const [certificates, setCertificates] = useState<(File | null)[]>([null]);
+
   // Generated child credentials for Parent Success screen
   const [generatedChildCreds, setGeneratedChildCreds] = useState<{ username: string; pass: string } | null>(null);
   const [showChildPassword, setShowChildPassword] = useState(false);
@@ -325,9 +330,18 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
         setError(isRtl ? 'برجاء ملء كافة البيانات المهنية والشخصية' : 'Please fill in all personal and professional details');
         return;
       }
-      if (!nationalIdDoc || !medLicenseDoc || !cvDoc) {
-        setError(isRtl ? 'برجاء رفع كافة وثائق التحقق المهنية المطلوبة' : 'Please upload all professional verification documents');
-        return;
+      if (selectedRole === 'Doctor') {
+        if (!nationalIdDoc || !medLicenseDoc || !cvDoc) {
+          setError(isRtl ? 'برجاء رفع كافة وثائق التحقق المهنية المطلوبة' : 'Please upload all professional verification documents');
+          return;
+        }
+      } else if (selectedRole === 'Therapist') {
+        if (!nationalIdFront || !nationalIdBack || !certificates[0]) {
+          setError(isRtl 
+            ? 'برجاء رفع وثيقة الرقم القومي (الوجه والخلف) بالإضافة إلى شهادة واحدة على الأقل مختومة بختم النسر' 
+            : 'Please upload your National ID (Front & Back) and at least one certificate with state stamp');
+          return;
+        }
       }
     }
 
@@ -380,9 +394,19 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
         formData.append('role', backendRole);
         formData.append('clinic', `${profTitle} - ${clinicName}`);
 
-        if (nationalIdDoc) formData.append('nationalIdDoc', nationalIdDoc);
-        if (medLicenseDoc) formData.append('medLicenseDoc', medLicenseDoc);
-        if (cvDoc) formData.append('cvDoc', cvDoc);
+        if (selectedRole === 'Doctor') {
+          if (nationalIdDoc) formData.append('nationalIdDoc', nationalIdDoc);
+          if (medLicenseDoc) formData.append('medLicenseDoc', medLicenseDoc);
+          if (cvDoc) formData.append('cvDoc', cvDoc);
+        } else if (selectedRole === 'Therapist') {
+          if (nationalIdFront) formData.append('nationalIdFront', nationalIdFront);
+          if (nationalIdBack) formData.append('nationalIdBack', nationalIdBack);
+          certificates.forEach((file) => {
+            if (file) {
+              formData.append('certificates', file);
+            }
+          });
+        }
 
         const registerRes = await register(formData);
 
@@ -912,43 +936,122 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                   </div>
 
                   {/* Clinician Verify Uploads */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authNationalID}
-                      </label>
-                      <FileUploader
-                        label={t.authUploadDoc}
-                        subtext={t.authUploadDocDesc}
-                        file={nationalIdDoc}
-                        onFileSelect={setNationalIdDoc}
-                      />
-                    </div>
+                  {selectedRole === 'Doctor' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authNationalID}
+                        </label>
+                        <FileUploader
+                          label={t.authUploadDoc}
+                          subtext={t.authUploadDocDesc}
+                          file={nationalIdDoc}
+                          onFileSelect={setNationalIdDoc}
+                        />
+                      </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authMedicalLicense}
-                      </label>
-                      <FileUploader
-                        label={t.authUploadDoc}
-                        subtext={t.authUploadDocDesc}
-                        file={medLicenseDoc}
-                        onFileSelect={setMedLicenseDoc}
-                      />
-                    </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authMedicalLicense}
+                        </label>
+                        <FileUploader
+                          label={t.authUploadDoc}
+                          subtext={t.authUploadDocDesc}
+                          file={medLicenseDoc}
+                          onFileSelect={setMedLicenseDoc}
+                        />
+                      </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authCV}
-                      </label>
-                      <FileUploader
-                        label={t.authUploadDoc}
-                        subtext={t.authUploadDocDesc}
-                        file={cvDoc}
-                        onFileSelect={setCvDoc}
-                      />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authCV}
+                        </label>
+                        <FileUploader
+                          label={t.authUploadDoc}
+                          subtext={t.authUploadDocDesc}
+                          file={cvDoc}
+                          onFileSelect={setCvDoc}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {isRtl ? 'البطاقة الشخصية - الوجه (إجباري)' : 'National ID - Front (Required)'}
+                        </label>
+                        <FileUploader
+                          label={t.authUploadDoc}
+                          subtext={t.authUploadDocDesc}
+                          file={nationalIdFront}
+                          onFileSelect={setNationalIdFront}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {isRtl ? 'البطاقة الشخصية - الخلف (إجباري)' : 'National ID - Back (Required)'}
+                        </label>
+                        <FileUploader
+                          label={t.authUploadDoc}
+                          subtext={t.authUploadDocDesc}
+                          file={nationalIdBack}
+                          onFileSelect={setNationalIdBack}
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-3 mt-2">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {isRtl ? 'شهادات التخرج والخبرة بختم النسر (مطلوب شهادة واحدة على الأقل)' : 'Graduation & Experience Certificates with state stamp (At least one is required)'}
+                        </label>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {certificates.map((file, idx) => (
+                            <div key={idx} className="space-y-1 relative">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[9px] font-bold text-slate-400">
+                                  {isRtl ? `شهادة #${idx + 1}` : `Certificate #${idx + 1}`}
+                                </span>
+                                {certificates.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = [...certificates];
+                                      updated.splice(idx, 1);
+                                      setCertificates(updated);
+                                    }}
+                                    className="text-red-400 hover:text-red-600 text-[10px] font-bold"
+                                  >
+                                    {isRtl ? 'حذف' : 'Remove'}
+                                  </button>
+                                )}
+                              </div>
+                              <FileUploader
+                                label={t.authUploadDoc}
+                                subtext={t.authUploadDocDesc}
+                                file={file}
+                                onFileSelect={(selectedFile) => {
+                                  const updated = [...certificates];
+                                  updated[idx] = selectedFile;
+                                  setCertificates(updated);
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        {certificates.length < 5 && (
+                          <button
+                            type="button"
+                            onClick={() => setCertificates([...certificates, null])}
+                            className="mt-2 text-xs font-bold text-sky-500 hover:text-sky-600 transition-colors flex items-center space-x-1"
+                          >
+                            <span>+ {isRtl ? 'إضافة شهادة أخرى' : 'Add Another Credential'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
