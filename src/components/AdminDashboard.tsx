@@ -533,9 +533,31 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                             {user.role === 'child' ? (user.username || 'No username') : (user.email || 'No email')}
                                                         </td>
                                                         <td className="py-3 font-bold">
-                                                            <span className={user.isActive ? 'text-emerald-500' : 'text-rose-500'}>
-                                                                {user.isActive ? 'Active' : 'Suspended'}
-                                                            </span>
+                                                            {(() => {
+                                                                if (!user.isActive) {
+                                                                    return <span className="text-rose-500">Suspended</span>;
+                                                                }
+                                                                if (user.role === 'parent') {
+                                                                    if (!user.isVerified) {
+                                                                        return <span className="text-amber-500">Awaiting verification</span>;
+                                                                    }
+                                                                    return <span className="text-emerald-500">Active</span>;
+                                                                }
+                                                                if (user.role === 'child') {
+                                                                    return <span className="text-emerald-500">Active</span>;
+                                                                }
+                                                                if (user.role === 'doctor' || user.role === 'therapist') {
+                                                                    if (user.isVerified) {
+                                                                        return <span className="text-emerald-500">Active</span>;
+                                                                    }
+                                                                    const hasSubmittedFiles = !!(user.nationalIdFront || user.nationalIdBack || (user.certificates && user.certificates.length > 0));
+                                                                    if (hasSubmittedFiles) {
+                                                                        return <span className="text-indigo-500">Awaiting for validation</span>;
+                                                                    }
+                                                                    return <span className="text-amber-500">Awaiting for verification</span>;
+                                                                }
+                                                                return <span className="text-emerald-500">Active</span>;
+                                                            })()}
                                                         </td>
                                                         <td className="py-3 text-right relative">
                                                             <div className="inline-block text-left">

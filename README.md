@@ -227,6 +227,19 @@ Role is assigned at registration and stored in the JWT. The middleware enforces 
 
 ---
 
+## Recent Implementations & Features
+
+### 1. Dynamic qualifications Uploader
+- **Therapist Onboarding Wizard**: Fully updated to support dynamic certificate arrays and dual-slot National ID inputs (Front/Back) matching the Express backend. Maps file inputs cleanly to a multi-part form payload.
+
+### 2. Administrative Dashboard Refactor
+- **5-Tab Role Navigation**: Adds `All`, `Parents`, `Doctors`, `Therapists`, and `Children` filter categories.
+- **Actions Context Dropdown**: Integrated a responsive actions overlay allowing administrators to suspend/activate accounts, change user passwords using a secure inline dialog, and manually override verification link issues.
+- **Verification Audit Queue**: Displays unverified specialist uploads with Cloudinary thumbnail previews and direct validation bypass triggers.
+- **HIPAA Audit Log Scroll Container**: Features a dedicated viewport for real-time monitoring of user activity logs.
+
+---
+
 ## Related Repositories
 
 | Repo | Description |

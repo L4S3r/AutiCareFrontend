@@ -550,7 +550,12 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
           >
             <div className="text-center space-y-2">
               <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-                {selectedRole === 'Parent' ? t.authJoinParent : t.authJoinClinician}
+                {selectedRole === 'Parent'
+                  ? t.authJoinParent
+                  : selectedRole === 'Doctor'
+                  ? (isRtl ? 'انضم لأوتي كير كطبيب' : 'Join AutiCare as Doctor')
+                  : (isRtl ? 'انضم لأوتي كير كمعالج' : 'Join AutiCare as Therapist')
+                }
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed font-semibold">
                 {t.authCreateStart}
