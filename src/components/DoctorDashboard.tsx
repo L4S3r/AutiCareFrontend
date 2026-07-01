@@ -76,6 +76,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
     try {
       const reportRes = await getGeneticReports(patient._id || patient.id);
       if (reportRes.success && reportRes.data && reportRes.data.length > 0) {
+        console.log("👉 FULL GENETIC REPORT DATA:", reportRes.data[0]);
         setGeneticReport(reportRes.data[0]);
 
         const planRes = await getNutritionPlans(patient._id || patient.id);
