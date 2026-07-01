@@ -7,7 +7,8 @@ import {
   Wand2, Check, AlertCircle, Plus, Upload
 } from 'lucide-react';
 import { Language } from '../types';
-import { getPatients, getGeneticReports, generateNutritionPlan, approveNutritionPlan, getNutritionPlans, updateProfileAvatar } from '../api';
+import { getPatients, getGeneticReports, generateNutritionPlan, approveNutritionPlan, getNutritionPlans, updateProfileAvatar, uploadGeneticReportFile } from '../api';
+// Line 10 (Updated): Include the file upload capability explicitly
 
 interface DoctorDashboardProps {
   language: Language;
@@ -108,33 +109,46 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
   const handleApprovePlan = async () => {
     if (!nutritionPlan) return;
 
-    // ─── Clinical Safety Gate ─────────────────────────────────────────────────
-    // Block approval if the doctor has typed adjustments but the note is too
-    // short to constitute a proper clinical justification (< 15 chars).
-    if (doctorNotes.trim().length > 0 && doctorNotes.trim().length < 15) {
-      setClinicalError(
-        'Clinical justification is too brief. Please provide at least 15 characters describing the override rationale before approving.'
-      );
-      return;
-    }
-    setClinicalError('');
-
-    // Build structured override payload from the physician's typed notes
-    const doctorEdits = doctorNotes.trim().length > 0
-      ? { overrideNotes: doctorNotes.trim(), adjustedAt: new Date().toISOString() }
-      : {};
-
     try {
       setIsApproving(true);
-      const res = await approveNutritionPlan(nutritionPlan._id || nutritionPlan.id, doctorNotes, doctorEdits);
-      if (res.success) {
-        setNutritionPlan(res.data);
-        setClinicalError('');
-        setActionSuccess('Nutrition plan approved and synced to parental notification channels.');
-        setTimeout(() => setActionSuccess(''), 4000);
+      setClinicalError('');
+      setActionSuccess('');
+
+      const cleanNotes = doctorNotes.trim() || 'Approved standard nutrition recommendations.';
+
+      // Build your structured custom adjustment payload block if doctor added explicit modifications
+      const customEdits = doctorNotes.trim().length > 0
+        ? { overrideNotes: doctorNotes.trim(), adjustedAt: new Date().toISOString() }
+        : {};
+
+      // ─── Clinical Safety Gate ─────────────────────────────────────────────────
+      // Block approval if the doctor has typed adjustments but the note is too
+      // short to constitute a proper clinical justification (< 15 chars).
+      if (doctorNotes.trim().length > 0 && doctorNotes.trim().length < 15) {
+        setClinicalError(
+          'Clinical justification is too brief. Please provide at least 15 characters describing the override rationale before approving.'
+        );
+        return;
       }
-    } catch (err) {
-      console.error('Signature process aborted:', err);
+
+      const res = await approveNutritionPlan(
+        nutritionPlan._id || nutritionPlan.id,
+        cleanNotes,
+        customEdits
+      );
+
+      if (res.success || res) {
+        setActionSuccess(isRtl ? 'تمت الموافقة على الخطة بنجاح!' : 'Nutrition plan approved and synced to parent dashboard!');
+        setDoctorNotes('');
+
+        // Force a re-fetch of patient metadata logs to safely synchronize UI views
+        if (selectedPatient) {
+          handleInspectPatient(selectedPatient);
+        }
+      }
+    } catch (err: any) {
+      console.error('Clinical verification sign-off layer failed:', err);
+      setClinicalError(err.message || 'Failed to update validation flag state.');
     } finally {
       setIsApproving(false);
     }
@@ -304,9 +318,56 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                         </div>
                       </div>
                     )}
-
+                    {/* Upgraded RAG System Automated Onboarding Gateway */}
                     {!geneticReport && (
-                      <div className="p-8 border border-dashed rounded-2xl text-center text-slate-400 text-xs bg-slate-50/50">Plan generation array dormant until a clinical DNA screening file is mapped.</div>
+                      <div className="p-8 border border-dashed rounded-2xl text-center text-slate-400 text-xs bg-slate-50/50">
+                        <div className="mx-auto w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center mb-2">
+                          <Upload className="w-5 h-5 text-sky-500 animate-bounce" />
+                        </div>
+                        <p className="text-sm font-black text-slate-700">Scan Raw Diagnostics Lab Report</p>
+                        <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mx-auto leading-normal mt-1">
+                          Upload raw saliva/blood analysis (PDF/Images). Our self-hosted RAG pipeline will extract genetic markers via OCR.
+                        </p>
+                        <label className="inline-flex items-center px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shadow-sm mt-3">
+                          <FileText className="w-4 h-4 mr-1.5" />
+                          <span>{loading ? 'Processing OCR Matrix...' : 'Choose Lab Document'}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.tiff"
+                            className="hidden"
+                            disabled={loading}
+                            onChange={async (e) => {
+                              const pickedFile = e.target.files?.[0];
+                              if (!pickedFile || !selectedPatient) return;
+
+                              try {
+                                setLoading(true);
+                                setClinicalError('');
+                                setActionSuccess('');
+
+                                // Direct stream connection via Express Gateway context parameters
+                                const res = await uploadGeneticReportFile(
+                                  selectedPatient._id || selectedPatient.id,
+                                  pickedFile,
+                                  "Automated Next.js clinician upload dashboard instance.",
+                                  "Staging Labs"
+                                );
+
+                                if (res) {
+                                  setActionSuccess('Lab report analysis complete! Multi-tiered nutrition cycle generated.');
+                                  // Refresh the current client profile state parameters cleanly
+                                  handleInspectPatient(selectedPatient);
+                                }
+                              } catch (err: any) {
+                                console.error("OCR Extraction Failed:", err);
+                                setClinicalError(err.message || 'Failed to successfully resolve vector match parameters.');
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                     )}
                   </div>
 
@@ -362,26 +423,26 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                           type="file"
                           accept="image/*"
                           className="hidden"
-                           onChange={async (e) => {
-                             if (e.target.files?.[0]) {
-                               try {
-                                 setLoading(true);
-                                 setUploadError('');
-                                 setUploadSuccess('');
-                                 const res = await updateProfileAvatar(e.target.files[0]);
-                                 if (res.success) {
-                                   doctorUser.avatar = res.data.avatar;
-                                   setUploadSuccess('Profile photo updated successfully.');
-                                   setDummyState(d => d + 1);
-                                 }
-                               } catch (err: any) {
-                                 console.error(err);
-                                 setUploadError(err.message || 'Failed to upload profile photo.');
-                               } finally {
-                                 setLoading(false);
-                               }
-                             }
-                           }}
+                          onChange={async (e) => {
+                            if (e.target.files?.[0]) {
+                              try {
+                                setLoading(true);
+                                setUploadError('');
+                                setUploadSuccess('');
+                                const res = await updateProfileAvatar(e.target.files[0]);
+                                if (res.success) {
+                                  doctorUser.avatar = res.data.avatar;
+                                  setUploadSuccess('Profile photo updated successfully.');
+                                  setDummyState(d => d + 1);
+                                }
+                              } catch (err: any) {
+                                console.error(err);
+                                setUploadError(err.message || 'Failed to upload profile photo.');
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          }}
                         />
                       </label>
                     </div>

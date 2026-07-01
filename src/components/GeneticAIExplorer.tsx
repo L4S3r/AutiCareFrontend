@@ -143,28 +143,28 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
         setReport({
           id: r._id,
           patientName: 'Sami Al-Farsi',
-          mthfrStatus: mthfrVal 
-            ? (mthfrVal.result?.toLowerCase().includes('homozygous') 
-                ? 'Homozygous mutant (C677T/A1298C)' 
-                : mthfrVal.result?.toLowerCase().includes('heterozygous')
-                  ? 'Heterozygous (C677T)'
-                  : 'Wild Type (Normal)')
+          mthfrStatus: mthfrVal
+            ? (mthfrVal.result?.toLowerCase().includes('homozygous')
+              ? 'Homozygous mutant (C677T/A1298C)'
+              : mthfrVal.result?.toLowerCase().includes('heterozygous')
+                ? 'Heterozygous (C677T)'
+                : 'Wild Type (Normal)')
             : 'Wild Type (Normal)',
           mthfrImpact: mthfrVal?.notes || 'No significant variations observed.',
           vdrStatus: vdrVal
             ? (vdrVal.result?.toLowerCase().includes('homozygous') || vdrVal.value?.toLowerCase() === 'ff'
-                ? 'ff (Reduced Vitamin D Receptor)'
-                : vdrVal.result?.toLowerCase().includes('heterozygous')
-                  ? 'Ff (Normal Expression)'
-                  : 'FF (Enhanced Expression)')
+              ? 'ff (Reduced Vitamin D Receptor)'
+              : vdrVal.result?.toLowerCase().includes('heterozygous')
+                ? 'Ff (Normal Expression)'
+                : 'FF (Enhanced Expression)')
             : 'Ff (Normal Expression)',
           vdrImpact: vdrVal?.notes || 'Receptor activity normal.',
           hlaStatus: hlaVal
             ? (hlaVal.marker?.toUpperCase().includes('DQ2') || hlaVal.value?.toUpperCase().includes('DQ2')
-                ? 'HLA-DQ2 Positive'
-                : hlaVal.marker?.toUpperCase().includes('DQ8') || hlaVal.value?.toUpperCase().includes('DQ8')
-                  ? 'HLA-DQ8 Positive'
-                  : 'HLA-DQ2/DQ8 Negative')
+              ? 'HLA-DQ2 Positive'
+              : hlaVal.marker?.toUpperCase().includes('DQ8') || hlaVal.value?.toUpperCase().includes('DQ8')
+                ? 'HLA-DQ8 Positive'
+                : 'HLA-DQ2/DQ8 Negative')
             : 'HLA-DQ2/DQ8 Negative',
           hlaImpact: hlaVal?.notes || 'No gluten sensitivity markers detected.',
           dietRecommendations,
@@ -222,50 +222,41 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
   const handleCustomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeChildId) return;
-    setAnalyzing(true);
-    
+
+    // Safety gate check to verify a file was actually dropped in
+    if (!customFile) {
+      alert(isRtl ? 'الرجاء اختيار ملف التقرير أولاً' : 'Please select a genetic report file first.');
+      return;
+    }
+
     try {
-      let parsedReport = null;
+      setAnalyzing(true);
 
-      if (customFile) {
-        // Upload the actual file for Gemini Multimodal OCR processing
-        console.log('📤 Uploading genetic file for processing...');
-        const res = await uploadGeneticReportFile(activeChildId, customFile, customText || 'Uploaded genetic report', customLab);
-        if (res.success) {
-          parsedReport = res.data;
-        }
-      } else {
-        // Manual entry logic (mock values)
-        const isMutant = customText.toLowerCase().includes('mutant') || customText.toLowerCase().includes('t');
-        const markers = [
-          { marker: 'MTHFR', result: isMutant ? 'homozygous' : 'heterozygous', value: isMutant ? 'Homozygous mutant (C677T/A1298C)' : 'Heterozygous (C677T)', notes: 'User manual genetic markers upload' },
-          { marker: 'VDR', result: 'homozygous', value: 'ff (Reduced Vitamin D Receptor)', notes: 'Receptor binding efficiency restriction' },
-          { marker: 'HLA-DQ2', result: 'positive', value: 'HLA-DQ2 Positive', notes: 'Autoimmune gluten inflammatory trace' }
-        ];
+      const response = await uploadGeneticReportFile(
+        activeChildId,
+        customFile,
+        customText || 'Automated RAG clinical execution run.',
+        customLab || 'Standard Lab'
+      );
 
-        const res = await uploadGeneticReport(activeChildId, markers, customText || 'Manual upload descriptors', customLab);
-        if (res.success) {
-          parsedReport = res.data;
-        }
-      }
+      if (response) {
+        alert(isRtl
+          ? 'تم رفع التقرير بنجاح! الخطة بانتظار المراجعة الطبية.'
+          : 'Report uploaded successfully! The AI plan has been drafted and is pending medical review.'
+        );
 
-      if (parsedReport) {
-        // Automatically request the backend to generate the AI nutrition plan for this report
-        console.log('🔮 Generating AI Nutrition plan...');
-        await generateNutritionPlan(activeChildId, parsedReport._id);
-        
-        // Reload dashboard view
         await reloadAll(activeChildId);
+        setCustomFile(null);
+        setCustomText('');
       }
-    } catch (err) {
-      console.error('Custom genetic upload and parsing failed:', err);
+    } catch (err: any) {
+      console.error('Failed to route file through processing network context:', err);
+      alert(err.message || 'An error occurred during lab report OCR extraction loop.');
     } finally {
       setAnalyzing(false);
-      setCustomReportActive(false);
-      setCustomFile(null);
-      setCustomText('');
     }
   };
+
 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -278,7 +269,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
 
   return (
     <div className="bg-white rounded-3xl border border-sky-100 shadow-md p-6 sm:p-8" id="genetic-explorer-workspace">
-      
+
       {/* Header inside the workspace */}
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-sky-100 pb-6 mb-8 gap-4">
         <div>
@@ -288,29 +279,27 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
           </h3>
           <p className="text-xs text-slate-400 mt-1">Upload files or select a patient genotype to see treatment plans automatically generated.</p>
         </div>
-        
+
         {/* Patient Selection Presets */}
         <div className="flex items-center space-x-2 scrollbar-none overflow-x-auto">
           {SAMPLE_GENETIC_REPORTS.map((rep) => (
             <button
               key={rep.id}
               onClick={() => handleSelectReport(rep.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 ${
-                selectedReportId === rep.id && !customReportActive
-                  ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-              }`}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 ${selectedReportId === rep.id && !customReportActive
+                ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
             >
               {rep.patientName} ({rep.id})
             </button>
           ))}
           <button
             onClick={() => setCustomReportActive(true)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 flex items-center space-x-1 ${
-              customReportActive
-                ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
-                : 'bg-slate-50 text-sky-600 hover:bg-slate-100 border border-dashed border-sky-200'
-            }`}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex-shrink-0 flex items-center space-x-1 ${customReportActive
+              ? 'bg-sky-500 text-white shadow shadow-sky-500/20'
+              : 'bg-slate-50 text-sky-600 hover:bg-slate-100 border border-dashed border-sky-200'
+              }`}
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{isRtl ? 'تقرير مخصص' : 'Custom Report'}</span>
@@ -319,15 +308,15 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
+
         {/* Left Side: System controls & sliced checklist metrics */}
         <div className="lg:col-span-4 space-y-6">
-          
+
           {/* Custom entry form */}
           {customReportActive ? (
             <form onSubmit={handleCustomSubmit} className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
               <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">Manual Genetic Data Entry</h4>
-              
+
               {/* Drag and drop file helper */}
               <div className="border border-dashed border-sky-200 rounded-xl bg-white p-4 text-center hover:bg-sky-50/50 transition-colors cursor-pointer relative">
                 <input
@@ -376,8 +365,8 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
             <div className="bg-sky-50/40 rounded-2xl p-5 border border-sky-100 space-y-3">
               <h4 className="text-xs font-extrabold uppercase tracking-wider text-sky-800">Genotype Focus Details</h4>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                {isRtl 
-                  ? 'يتم استخلاص ورصد الأنماط الجينية لتحديد الطفرات الممرضة للطفل وتوفير مكملات لتفادي كسل المسارات الأيضية الطبيعية.' 
+                {isRtl
+                  ? 'يتم استخلاص ورصد الأنماط الجينية لتحديد الطفرات الممرضة للطفل وتوفير مكملات لتفادي كسل المسارات الأيضية الطبيعية.'
                   : 'AutiCare models verify standard genomic files against scientific databases to build safe dietary templates.'}
               </p>
               <div className="pt-2 border-t border-sky-100 space-y-2">
@@ -403,7 +392,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
               <Cpu className="w-4 h-4 text-sky-500" />
               <span>Nutrition Plan Feature list</span>
             </h4>
-            
+
             <ul className="space-y-2.5">
               {checklist.map((item, idx) => (
                 <li key={idx} className="flex items-start space-x-2 text-[11px] text-slate-600">
@@ -420,7 +409,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
 
         {/* Right Side: Analysis Display and results */}
         <div className="lg:col-span-8">
-          
+
           <AnimatePresence mode="wait">
             {analyzing ? (
               <motion.div
@@ -441,10 +430,10 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-6"
               >
-                
+
                 {/* Genotype summary boxes */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  
+
                   {/* MTHFR Status Block */}
                   <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl relative overflow-hidden">
                     <span className="text-[9px] font-mono text-sky-500 font-bold uppercase tracking-wider block">MTHFR GENE</span>
@@ -470,7 +459,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
 
                 {/* Recommendations Tabs output */}
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-6">
-                  
+
                   {/* Supplement Guidance list */}
                   <div className="space-y-3">
                     <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 font-mono border-b border-sky-100 pb-2">
@@ -522,7 +511,7 @@ export default function GeneticAIExplorer({ language }: GeneticAIExplorerProps) 
                     <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 font-mono border-b border-sky-100 pb-2">
                       Meal suggestion plans (3-day cycle)
                     </h4>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {report.mealPlan.map((m, idx) => (
                         <div key={idx} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm space-y-2">
