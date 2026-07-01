@@ -274,12 +274,20 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                           Source Sequence Metadata
                         </p>
                         <p className="font-mono text-slate-800 truncate">
-                          {geneticReport.fileName}
+                          {geneticReport.fileName || geneticReport.reportFileName || "Unnamed Report.pdf"}
                         </p>
                         <a
-                          href={geneticReport.fileUrl}
+                          href={geneticReport.fileUrl || geneticReport.reportFileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => {
+                            const targetUrl = geneticReport.fileUrl || geneticReport.reportFileUrl;
+                            console.log("🔗 Opening Report URL:", targetUrl);
+                            if (!targetUrl) {
+                              e.preventDefault();
+                              alert("❌ Crash: This report record has no fileUrl or reportFileUrl properties in the database payload!");
+                            }
+                          }}
                           download
                           className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded transition-all flex items-center gap-1">
                           <span>👁️ View Report</span>
@@ -473,7 +481,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }
