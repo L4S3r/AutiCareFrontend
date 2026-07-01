@@ -324,6 +324,15 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                     {nutritionPlan && (
                       <div className="space-y-4 text-xs">
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1"><span className="text-[9px] font-black text-slate-400 block uppercase">Supplement Cofactor Matrix Summary</span><p className="font-semibold text-slate-600 truncate">{nutritionPlan.aiRecommendation?.supplements?.map((s: any) => s.name).join(', ') || 'No supplements compiled.'}</p></div>
+                        {/* NEW: Full AI Nutrition Framework Plan Text Display */}
+                        <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl border border-slate-800 space-y-2 font-medium max-h-60 overflow-y-auto whitespace-pre-wrap shadow-inner">
+                          <span className="text-[9px] font-black text-sky-400 block uppercase tracking-wider">
+                            🚀 AI Generated Nutrition Framework
+                          </span>
+                          <div className="text-xs leading-relaxed font-sans text-slate-300">
+                            {nutritionPlan.aiRecommendation?.nutritionPlan || "No text blueprint compiled for this profile."}
+                          </div>
+                        </div>
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Specialist Clinical Overrides &amp; Notes</label>
                           <textarea
