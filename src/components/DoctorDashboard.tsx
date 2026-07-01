@@ -350,25 +350,40 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
 
                         {/* 3. DIETARY FOCUS AND RESTRICTIONS TARGETS */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {/* Recommended Focus Foods */}
+                          {/* 🟢 Focus Foods to Include */}
                           <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl space-y-2">
                             <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider block">🟢 Focus Foods to Include</span>
-                            <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium">
-                              {nutritionPlan.aiRecommendation?.mealSuggestions?.[0]?.suggestions?.map((food: string, idx: number) => (
-                                <li key={idx}>{food}</li>
-                              )) || <span className="text-slate-400 text-[11px]">No specific focus foods tracked.</span>}
-                            </ul>
+                            {nutritionPlan.aiRecommendation?.mealSuggestions?.[0]?.suggestions &&
+                              nutritionPlan.aiRecommendation.mealSuggestions[0].suggestions.length > 0 ? (
+                              <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium">
+                                {nutritionPlan.aiRecommendation.mealSuggestions[0].suggestions.map((food: string, idx: number) => (
+                                  <li key={idx}>{food}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] font-medium italic block">
+                                No specific focus foods highlighted for this biomarker footprint.
+                              </span>
+                            )}
                           </div>
 
-                          {/* Exclusions & Restrictions */}
+                          {/* 🔴 Inflammatory Exclusions */}
                           <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
                             <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block">🔴 Inflammatory Exclusions</span>
-                            <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium">
-                              {nutritionPlan.aiRecommendation?.foodRestrictions?.map((food: string, idx: number) => (
-                                <li key={idx}>{food}</li>
-                              )) || <span className="text-slate-400 text-[11px]">No categorical exclusions found.</span>}
-                            </ul>
+                            {nutritionPlan.aiRecommendation?.foodRestrictions &&
+                              nutritionPlan.aiRecommendation.foodRestrictions.length > 0 ? (
+                              <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium">
+                                {nutritionPlan.aiRecommendation.foodRestrictions.map((food: string, idx: number) => (
+                                  <li key={idx}>{food}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="text-slate-400 text-[11px] font-medium italic block">
+                                No categorical exclusions or food sensitivities flagged.
+                              </span>
+                            )}
                           </div>
+
                         </div>
 
                         {/* 4. BIOCHEMICAL REASONING NOTES */}
