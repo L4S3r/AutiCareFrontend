@@ -279,6 +279,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                           href={geneticReport.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          download
                           className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded transition-all flex items-center gap-1">
                           <span>👁️ View Report</span>
                         </a>
