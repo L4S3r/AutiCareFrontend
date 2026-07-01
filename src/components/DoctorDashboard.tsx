@@ -322,18 +322,65 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                     )}
 
                     {nutritionPlan && (
-                      <div className="space-y-4 text-xs">
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1"><span className="text-[9px] font-black text-slate-400 block uppercase">Supplement Cofactor Matrix Summary</span><p className="font-semibold text-slate-600 truncate">{nutritionPlan.aiRecommendation?.supplements?.map((s: any) => s.name).join(', ') || 'No supplements compiled.'}</p></div>
-                        {/* NEW: Full AI Nutrition Framework Plan Text Display */}
-                        <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl border border-slate-800 space-y-2 font-medium max-h-60 overflow-y-auto whitespace-pre-wrap shadow-inner">
-                          <span className="text-[9px] font-black text-sky-400 block uppercase tracking-wider">
-                            🚀 AI Generated Nutrition Framework
-                          </span>
-                          <div className="text-xs leading-relaxed font-sans text-slate-300">
-                            {nutritionPlan.aiRecommendation?.nutritionPlan || "No text blueprint compiled for this profile."}
+                      <div className="space-y-5 text-xs text-left max-h-[75vh] overflow-y-auto pr-2">
+
+                        {/* 1. COMPREHENSIVE AI PLAN OVERVIEW TEXT */}
+                        <div className="bg-slate-950 text-slate-100 p-4 rounded-2xl border border-slate-800 space-y-2">
+                          <span className="text-[9px] font-black text-sky-400 block uppercase tracking-wider">AI Generated Nutrition Framework</span>
+                          <div className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap">
+                            {nutritionPlan.aiRecommendation?.nutritionPlan}
                           </div>
                         </div>
-                        <div className="space-y-1.5">
+
+                        {/* 2. THE EXPANDED SUPPLEMENT MATRIX */}
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">💊 Supplement Matrix & Titration</span>
+                          <div className="grid grid-cols-1 gap-2">
+                            {nutritionPlan.aiRecommendation?.supplements?.map((s: any, idx: number) => (
+                              <div key={idx} className="bg-white border border-slate-100 p-3 rounded-xl flex flex-col space-y-1 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-slate-800">{s.name}</span>
+                                  <span className="bg-sky-50 text-sky-700 font-black px-2 py-0.5 rounded text-[9px] uppercase">{s.dosage} ({s.frequency})</span>
+                                </div>
+                                {s.notes && <p className="text-[11px] text-slate-400 font-medium italic">Reason: {s.notes}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 3. DIETARY FOCUS AND RESTRICTIONS TARGETS */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* Recommended Focus Foods */}
+                          <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl space-y-2">
+                            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider block">🟢 Focus Foods to Include</span>
+                            <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium">
+                              {nutritionPlan.aiRecommendation?.mealSuggestions?.[0]?.suggestions?.map((food: string, idx: number) => (
+                                <li key={idx}>{food}</li>
+                              )) || <span className="text-slate-400 text-[11px]">No specific focus foods tracked.</span>}
+                            </ul>
+                          </div>
+
+                          {/* Exclusions & Restrictions */}
+                          <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
+                            <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block">🔴 Inflammatory Exclusions</span>
+                            <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium">
+                              {nutritionPlan.aiRecommendation?.foodRestrictions?.map((food: string, idx: number) => (
+                                <li key={idx}>{food}</li>
+                              )) || <span className="text-slate-400 text-[11px]">No categorical exclusions found.</span>}
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* 4. BIOCHEMICAL REASONING NOTES */}
+                        {nutritionPlan.aiRecommendation?.reasoning && (
+                          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">🧠 RAG Pipeline Core Reasoning</span>
+                            <p className="text-slate-600 font-medium leading-relaxed italic">{nutritionPlan.aiRecommendation.reasoning}</p>
+                          </div>
+                        )}
+
+                        {/* 5. CLINICAL OVERRIDES MANUAL TEXTAREA ENTRY */}
+                        <div className="space-y-1.5 border-t pt-3 mt-2">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Specialist Clinical Overrides &amp; Notes</label>
                           <textarea
                             value={doctorNotes}
