@@ -268,7 +268,21 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                   <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 border-b pb-2 flex items-center space-x-2"><Dna className="w-4 h-4 text-sky-500" /><span>Biomarker PDF Mappings</span></h4>
                   {geneticReport ? (
                     <div className="space-y-3">
-                      <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 text-xs font-semibold"><p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">Source Sequence Metadata</p><p className="font-mono text-slate-800 truncate">{geneticReport.reportFileName || 'dna_saliva_dump.pdf'}</p></div>
+                      <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 text-xs font-semibold">
+                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">
+                          Source Sequence Metadata
+                        </p>
+                        <p className="font-mono text-slate-800 truncate">
+                          {geneticReport.fileName}
+                        </p>
+                        <a
+                          href={geneticReport.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-3 rounded transition-all flex items-center gap-1">
+                          <span>👁️ View Report</span>
+                        </a>
+                      </div>
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                         {geneticReport.parsedMarkers?.map((m: any, i: number) => (
                           <div key={i} className="p-2.5 border border-slate-100 rounded-xl flex justify-between items-center text-xs bg-slate-50/40">
