@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { getPatients, getGeneticReports, generateNutritionPlan, approveNutritionPlan, getNutritionPlans, updateProfileAvatar, uploadGeneticReportFile } from '../api';
-// Line 10 (Updated): Include the file upload capability explicitly
 
 interface DoctorDashboardProps {
   language: Language;
@@ -367,15 +366,16 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                             )}
                           </div>
 
-                          {/* 🔴 Inflammatory Exclusions */}
+                          {/* 🔴 Inflammatory Exclusions Grid Block */}
                           <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
                             <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block">🔴 Inflammatory Exclusions</span>
                             {nutritionPlan.aiRecommendation?.foodRestrictions &&
                               nutritionPlan.aiRecommendation.foodRestrictions.length > 0 ? (
-                              <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium">
-                                {nutritionPlan.aiRecommendation.foodRestrictions.map((food: string, idx: number) => (
-                                  <li key={idx}>{food}</li>
-                                ))}
+                              <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium text-left">
+                                {nutritionPlan.aiRecommendation.foodRestrictions.map((item: any, idx: number) => {
+                                  const foodText = typeof item === 'string' ? item : (item.text || item.name || Object.values(item)[0]);
+                                  return <li key={idx} className="leading-relaxed">{String(foodText)}</li>;
+                                })}
                               </ul>
                             ) : (
                               <span className="text-slate-400 text-[11px] font-medium italic block">
@@ -383,7 +383,6 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                               </span>
                             )}
                           </div>
-
                         </div>
 
                         {/* 4. BIOCHEMICAL REASONING NOTES */}
