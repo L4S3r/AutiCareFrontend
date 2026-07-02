@@ -54,7 +54,7 @@ async function request(path: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    
+
     // Invalidate session locally and notify listeners of suspension
     if (response.status === 403 && errorData.code === 'ACCOUNT_DISABLED') {
       if (typeof window !== 'undefined') {
@@ -364,4 +364,54 @@ export async function submitContactForm(data: { name: string; email: string; pho
     body: JSON.stringify(data),
   });
 }
+
+/**
+ * Fetches secure historical messaging logs between the parent and a care team partner for a child case.
+ */
+export const getChatHistory = async (
+  patientId: string,
+  partnerId: string
+): Promise<{ success: boolean; data?: any[]; error?: string }> => {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/history/${patientId}/${partnerId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+    return await response.json();
+  } catch (error: any) {
+    console.error("Failed to retrieve conversation logs:", error);
+    return { success: false, error: error.message || "Network exception occurred." };
+  }
+};
+
+/**
+ * Fallback REST endpoint to send messages via standard HTTP POST protocols.
+ */
+export const sendHttpMessage = async (payload: {
+  patientId: string;
+  receiverId: string;
+  text: string;
+  senderRole: 'parent' | 'doctor' | 'therapist';
+}): Promise<{ success: boolean; data?: any; error?: string }> => {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}
+        )
+      },
+      body: JSON.stringify(payload)
+    });
+    return await response.json();
+  } catch (error: any) {
+    console.error("HTTP message post processing failed:", error);
+    return { success: false, error: error.message || "Failed to process message transmission over HTTP." };
+  }
+};
 

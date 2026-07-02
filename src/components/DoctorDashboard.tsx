@@ -89,6 +89,30 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
     }
   };
 
+  const handleAssignTherapistOptimistic = (therapistId: string, therapistName: string) => {
+    if (!selectedPatient) return;
+
+    const currentTherapists = selectedPatient.assignedTherapists || [];
+    const alreadyAssigned = currentTherapists.some((t: any) => (t._id || t.id) === therapistId);
+
+    let updatedTherapists = [...currentTherapists];
+    if (!alreadyAssigned) {
+      updatedTherapists.push({ _id: therapistId, name: therapistName, role: 'Therapist' });
+    } else {
+      updatedTherapists = updatedTherapists.filter((t: any) => (t._id || t.id) !== therapistId);
+    }
+
+    const updatedPatient = {
+      ...selectedPatient,
+      assignedTherapists: updatedTherapists
+    };
+
+    // Optimistically mutate states in-memory concurrently
+    setSelectedPatient(updatedPatient);
+    setPatientsList(prev => prev.map(p => (p._id || p.id) === updatedPatient._id ? updatedPatient : p));
+    setDummyState(prev => prev + 1); // Enforce view-tree re-render pass
+  };
+
   const handleTriggerAIEngine = async () => {
     if (!selectedPatient || !geneticReport) return;
     try {
@@ -116,20 +140,17 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
 
       const cleanNotes = doctorNotes.trim() || 'Approved standard nutrition recommendations.';
 
-      // Build your structured custom adjustment payload block if doctor added explicit modifications
-      const customEdits = doctorNotes.trim().length > 0
-        ? { overrideNotes: doctorNotes.trim(), adjustedAt: new Date().toISOString() }
-        : {};
-
-      // ─── Clinical Safety Gate ─────────────────────────────────────────────────
-      // Block approval if the doctor has typed adjustments but the note is too
-      // short to constitute a proper clinical justification (< 15 chars).
+      // Block approval if the doctor has typed adjustments but the note is too short
       if (doctorNotes.trim().length > 0 && doctorNotes.trim().length < 15) {
         setClinicalError(
           'Clinical justification is too brief. Please provide at least 15 characters describing the override rationale before approving.'
         );
         return;
       }
+
+      const customEdits = doctorNotes.trim().length > 0
+        ? { overrideNotes: doctorNotes.trim(), adjustedAt: new Date().toISOString() }
+        : {};
 
       const res = await approveNutritionPlan(
         nutritionPlan._id || nutritionPlan.id,
@@ -141,7 +162,6 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
         setActionSuccess(isRtl ? 'تمت الموافقة على الخطة بنجاح!' : 'Nutrition plan approved and synced to parent dashboard!');
         setDoctorNotes('');
 
-        // Force a re-fetch of patient metadata logs to safely synchronize UI views
         if (selectedPatient) {
           handleInspectPatient(selectedPatient);
         }
@@ -260,6 +280,53 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                   <p className="text-xs text-slate-400 font-medium">Diagnostic Severity Index: {selectedPatient.asdLevel?.toUpperCase()}</p>
                 </div>
                 <button onClick={() => setSelectedPatient(null)} className="px-3 py-1.5 bg-slate-50 border text-slate-600 text-xs font-black rounded-xl cursor-pointer transition-colors hover:bg-slate-100">Back to Directory</button>
+              </div>
+
+              {/* OPTIMISTIC CARE TEAM MATCHING PANEL */}
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-5 shadow-sm mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <Users size={14} className="text-brand-500" />
+                    {isRtl ? 'الأخصائي المعالج المشترك' : 'Assigned Care Team Specialist'}
+                  </h4>
+                  <span className="text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md font-semibold">
+                    {isRtl ? 'تعديل فوري' : 'In-Memory Sync'}
+                  </span>
+                </div>
+
+                <div className="mb-4">
+                  {selectedPatient.assignedTherapists && selectedPatient.assignedTherapists.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedPatient.assignedTherapists.map((therapist: any) => (
+                        <div key={therapist._id || therapist.id} className="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-100 dark:border-slate-600">
+                          🧑‍🏫 {therapist.name}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs italic text-slate-400">{isRtl ? 'لم يتم تعيين أخصائي معالج.' : 'No therapist assigned to this child case yet.'}</p>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
+                  <p className="text-[11px] font-semibold text-slate-500 mb-2">
+                    {isRtl ? 'إسناد سريع للحالة (دون حظر قاعدة البيانات):' : 'Optimistic Therapist Assignment Overrides:'}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAssignTherapistOptimistic('therapist-01', 'Amina El-Gamil')}
+                      className="btn btn-sm btn-outline-light text-[11px] py-1 px-2 flex items-center gap-1"
+                    >
+                      + Amina El-Gamil
+                    </button>
+                    <button
+                      onClick={() => handleAssignTherapistOptimistic('therapist-02', 'Leila Karim')}
+                      className="btn btn-sm btn-outline-light text-[11px] py-1 px-2 flex items-center gap-1"
+                    >
+                      + Ms. Leila Karim
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -412,6 +479,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                         </div>
                       </div>
                     )}
+
                     {/* Upgraded RAG System Automated Onboarding Gateway */}
                     {!geneticReport && (
                       <div className="p-8 border border-dashed rounded-2xl text-center text-slate-400 text-xs bg-slate-50/50">
@@ -439,7 +507,6 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                                 setClinicalError('');
                                 setActionSuccess('');
 
-                                // Direct stream connection via Express Gateway context parameters
                                 const res = await uploadGeneticReportFile(
                                   selectedPatient._id || selectedPatient.id,
                                   pickedFile,
@@ -449,7 +516,6 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
 
                                 if (res) {
                                   setActionSuccess('Lab report analysis complete! Multi-tiered nutrition cycle generated.');
-                                  // Refresh the current client profile state parameters cleanly
                                   handleInspectPatient(selectedPatient);
                                 }
                               } catch (err: any) {
@@ -551,7 +617,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
             </div>
           )}
         </div>
-      </main >
-    </div >
+      </main>
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import {
   Users, Calendar, Clock, LogOut, CheckCircle2, AlertCircle,
   Smile, Heart, ArrowRight, ShieldCheck, FileText, Settings,
   Activity, Sparkles, ChevronRight, UserPlus, ClipboardList, ChevronLeft,
-  Plus, Upload
+  Plus, Upload, Stethoscope
 } from 'lucide-react';
 import { Language } from '../types';
 import BehavioralTracker from './BehavioralTracker';
@@ -42,6 +42,24 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
     { id: 'PAT-02', name: 'Jane Smith', age: '8 Years', level: 'Level 2', progress: 70, gender: 'Female', notes: 'GFCF diet compliance is high. Motor coordination sessions are positive.' },
     { id: 'PAT-03', name: 'Sam Brown', age: '5 Years', level: 'Level 1', progress: 20, gender: 'Male', notes: 'Session was restless around late evening triggers. Recommended quiet sensory room.' }
   ];
+
+  const handleAssignDoctorOptimistic = (doctorId: string, doctorName: string) => {
+    if (!selectedPatient) return;
+
+    // Build the updated doctor sub-object structure optimistically
+    const updatedPatient = {
+      ...selectedPatient,
+      assignedDoctor: {
+        _id: doctorId,
+        name: doctorName,
+        specialization: isRtl ? 'استشاري طب أعصاب الأطفال' : 'Pediatric Neurology Specialist'
+      }
+    };
+
+    // Mutate local state layers concurrently for zero-latency UI response
+    setSelectedPatient(updatedPatient);
+    setDummyState(prev => prev + 1); // Triggers re-render pass for matching trees
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans">
@@ -156,6 +174,57 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
             </div>
           )}
 
+          {/* OPTIMISTIC MEDICAL COORDINATION GATEWAY */}
+          {selectedPatient && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-5 shadow-sm mb-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <Stethoscope size={14} className="text-brand-500" />
+                  {isRtl ? 'الطبيب السريري المشرف' : 'Supervising Clinical Physician'}
+                </h4>
+                <span className="text-[10px] bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-md font-semibold">
+                  {isRtl ? 'تزامن فوري' : 'In-Memory Sync'}
+                </span>
+              </div>
+
+              {/* Assigned Doctor Metadata Card */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-950/40 flex items-center justify-center text-base">
+                  👨‍⚕️
+                </div>
+                <div>
+                  <h5 className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    {selectedPatient.assignedDoctor ? selectedPatient.assignedDoctor.name : (isRtl ? 'لم يتم تعيين طبيب مشرف' : 'Unassigned Primary Doctor')}
+                  </h5>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {selectedPatient.assignedDoctor?.specialization || (isRtl ? 'طب أعصاب الأطفال' : 'Pediatric Specialist')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick In-Memory Overrides Controls */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
+                <p className="text-[11px] font-semibold text-slate-500 mb-2">
+                  {isRtl ? 'تعديل الطبيب المسؤول (دون حظر الشبكة):' : 'Modify Assigned Clinical Lead (Zero Round-Trip):'}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleAssignDoctorOptimistic('doc-karim', 'Dr. Karim Al-Saeed')}
+                    className="btn btn-sm btn-outline-light text-[11px] py-1 px-2.5 hover:border-brand-300 hover:bg-brand-50/50"
+                  >
+                    Sync: Dr. Karim
+                  </button>
+                  <button
+                    onClick={() => handleAssignDoctorOptimistic('doc-sarah', 'Dr. Sarah Al-Mansouri')}
+                    className="btn btn-sm btn-outline-light text-[11px] py-1 px-2.5 hover:border-brand-300 hover:bg-brand-50/50"
+                  >
+                    Sync: Dr. Sarah
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'behavior' && <BehavioralTracker language={language} />}
 
           {activeTab === 'settings' && (
@@ -202,22 +271,22 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                           className="hidden"
                           onChange={async (e) => {
                             if (e.target.files?.[0]) {
-                                try {
-                                  setLoading(true);
-                                  setUploadError('');
-                                  setUploadSuccess('');
-                                  const res = await updateProfileAvatar(e.target.files[0]);
-                                  if (res.success) {
-                                    therapistUser.avatar = res.data.avatar;
-                                    setUploadSuccess('Profile photo updated successfully.');
-                                    setDummyState(d => d + 1);
-                                  }
-                                } catch (err: any) {
-                                  console.error(err);
-                                  setUploadError(err.message || 'Failed to upload profile photo.');
-                                } finally {
-                                  setLoading(false);
+                              try {
+                                setLoading(true);
+                                setUploadError('');
+                                setUploadSuccess('');
+                                const res = await updateProfileAvatar(e.target.files[0]);
+                                if (res.success) {
+                                  therapistUser.avatar = res.data.avatar;
+                                  setUploadSuccess('Profile photo updated successfully.');
+                                  setDummyState(d => d + 1);
                                 }
+                              } catch (err: any) {
+                                console.error(err);
+                                setUploadError(err.message || 'Failed to upload profile photo.');
+                              } finally {
+                                setLoading(false);
+                              }
                             }
                           }}
                         />
