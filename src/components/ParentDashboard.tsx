@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { io, Socket } from 'socket.io-client';
+import { useNotificationStore } from '../store/useNotificationStore';
 import {
   getNutritionPlans,
   getChatHistory,
@@ -86,8 +87,12 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
   // ─── NOTIFICATIONS ───────────────────────────────────────
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const unreadCount = notifications.filter((n: any) => !n.read).length;
+  const {
+    notifications,
+    unreadCount,
+    fetchNotifications,
+    markAllAsRead
+  } = useNotificationStore();
 
   // ─── DAILY BEHAVIOR LOGGING FORM STATES ───────────────────
   const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry'>('happy');
@@ -113,8 +118,17 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const loadEcosystemLogs = async () => {
     try {
       const res = await getBehaviorLogs(childId);
-      if (res.success && res.data) {
-        setLogs(res.data);
+      if (res.success && res.data && res.data.length > 0) {
+        const mapped = res.data.map((l: any) => ({
+          date: l.date ? l.date.split('T')[0] : '',
+          mood: l.mood || 'neutral',
+          sleep: `${l.sleepHours || 0} hrs`,
+          meds: l.medication && l.medication[0] ? l.medication[0].taken : true,
+          notes: l.notes || ''
+        }));
+        setLogs(mapped);
+      } else {
+        setLogs([]);
       }
     } catch (err) {
       console.error("Failed to restore behavioral logs:", err);
@@ -154,6 +168,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
       fetchNutritionData();
       loadEcosystemLogs();
       fetchAIAnalysisModel();
+      fetchNotifications();
     }
   }, [childId, language]);
 
@@ -425,7 +440,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   <div className={`absolute mt-2 w-80 bg-white border border-slate-100 rounded-2xl shadow-xl p-4 z-50 space-y-3 ${isRtl ? 'left-0' : 'right-0'}`}>
                     <div className="flex justify-between items-center border-b pb-2">
                       <span className="text-xs font-black text-slate-800">{isRtl ? 'الإشعارات' : 'Notifications'}</span>
-                      <button onClick={() => setNotifications(prev => prev.map((n: any) => ({ ...n, read: true })))} className="text-[10px] text-indigo-600 font-bold hover:underline">
+                      <button onClick={() => markAllAsRead()} className="text-[10px] text-indigo-600 font-bold hover:underline">
                         {isRtl ? 'تحديد الكل كمقروء' : 'Mark all read'}
                       </button>
                     </div>
@@ -591,27 +606,35 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         <th className="pb-2">{isRtl ? 'التاريخ' : 'Date'}</th>
                         <th className="pb-2">{isRtl ? 'المزاج' : 'Mood'}</th>
                         <th className="pb-2">{isRtl ? 'النوم' : 'Sleep'}</th>
+                        <th className="pb-2">{isRtl ? 'الأدوية' : 'Meds'}</th>
                         <th className="pb-2">{isRtl ? 'الملاحظات' : 'Notes'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 font-medium text-slate-600">
                       {logs.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-slate-400 italic font-bold">
+                          <td colSpan={5} className="py-8 text-center text-slate-400 italic font-bold">
                             {isRtl ? 'لا توجد سجلات بعد.' : 'No logs yet.'}
                           </td>
                         </tr>
                       ) : (
-                        logs.map((l, i) => (
-                          <tr key={l._id || i}>
-                            <td className="py-3 font-mono font-bold text-slate-800">{l.date ? new Date(l.date).toLocaleDateString() : ''}</td>
+                        logs.map((log: any, i: number) => (
+                          <tr key={i}>
+                            <td className="py-3 font-mono font-bold text-slate-800">{log.date || ''}</td>
                             <td>
-                              <span className="inline-block px-2 py-0.5 text-[9px] font-black rounded-full uppercase bg-indigo-50 text-indigo-700">
-                                {l.mood}
+                              <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-full uppercase ${
+                                log.mood === 'very_happy' ? 'bg-emerald-100 text-emerald-700' :
+                                log.mood === 'happy' ? 'bg-emerald-50 text-emerald-600' :
+                                log.mood === 'neutral' ? 'bg-slate-100 text-slate-600' :
+                                log.mood === 'anxious' ? 'bg-amber-50 text-amber-600' :
+                                'bg-rose-50 text-rose-600'
+                              }`}>
+                                {log.mood.replace('_', ' ')}
                               </span>
                             </td>
-                            <td className="font-mono">{l.sleepHours}h</td>
-                            <td className="max-w-xs truncate text-slate-400" title={l.notes}>{l.notes}</td>
+                            <td className="font-bold">{log.sleep}</td>
+                            <td className="font-black">{log.meds ? <span className="text-emerald-500">✓</span> : <span className="text-rose-500">×</span>}</td>
+                            <td className="max-w-xs truncate text-slate-400" title={log.notes}>{log.notes}</td>
                           </tr>
                         ))
                       )}
