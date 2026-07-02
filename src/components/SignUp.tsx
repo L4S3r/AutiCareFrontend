@@ -611,512 +611,521 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Password */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-500 block">
-                      {t.authPassword}
-                    </label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className={`absolute ${isRtl ? 'left-4' : 'right-4'} text-slate-400 hover:text-sky-600 transition-colors`}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+                  {/* Unified Password Row Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    {/* Password Field */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-500 block">
+                        {t.authPassword}
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className={`w-full py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold ${isRtl ? 'pl-11 pr-4' : 'pr-11 pl-4'
+                            }`}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className={`absolute ${isRtl ? 'left-4' : 'right-4'} text-slate-400 hover:text-sky-600 transition-colors cursor-pointer`}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm Password Field */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-500 block">
+                        {t.authConfirmPassword}
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className={`w-full py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold ${isRtl ? 'pl-11 pr-4' : 'pr-11 pl-4'
+                            }`}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className={`absolute ${isRtl ? 'left-4' : 'right-4'} text-slate-400 hover:text-sky-600 transition-colors cursor-pointer`}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div> {/* Grid wrapper now closes correctly here! */}
+
+                  {/* Password Strength Meter */}
+                  {password.length > 0 && (
+                    <div className="space-y-2 p-4 bg-slate-50 border border-slate-200/60 rounded-2xl text-left">
+                      <div className="flex items-center justify-between text-[11px] font-black uppercase text-slate-500">
+                        <span>{strengthT.strengthLabel}</span>
+                        <span className={
+                          strengthInfo.score === 4 ? 'text-emerald-500' :
+                            strengthInfo.score === 3 ? 'text-teal-500' :
+                              strengthInfo.score === 2 ? 'text-amber-500' :
+                                'text-rose-500'
+                        }>
+                          {strengthInfo.isCommon ? strengthT.weak + ' (Common)' :
+                            strengthInfo.score === 4 ? strengthT.strong :
+                              strengthInfo.score === 3 ? strengthT.good :
+                                strengthInfo.score === 2 ? strengthT.fair :
+                                  strengthT.weak}
+                        </span>
+                      </div>
+
+                      {/* 4-bar indicator */}
+                      <div className="grid grid-cols-4 gap-1.5 h-1.5">
+                        {[1, 2, 3, 4].map((stepVal) => (
+                          <div
+                            key={stepVal}
+                            className={`h-full rounded-full transition-all duration-300 ${stepVal <= strengthInfo.score
+                              ? (strengthInfo.score === 4 ? 'bg-emerald-500' :
+                                strengthInfo.score === 3 ? 'bg-teal-500' :
+                                  strengthInfo.score === 2 ? 'bg-amber-500' :
+                                    'bg-rose-500')
+                              : 'bg-slate-200'
+                              }`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Checklist items */}
+                      <div className={`space-y-1 pt-1 text-[10px] font-bold text-slate-500`}>
+                        <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.length ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                          <span>{strengthT.reqLength}</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.upper ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                          <span>{strengthT.reqUpper}</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.lower ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                          <span>{strengthT.reqLower}</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.number ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                          <span>{strengthT.reqNumber}</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.special ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                          <span>{strengthT.reqSpecial}</span>
+                        </div>
+                        <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.noUsername ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          </div>
+                          <span>{strengthT.reqNoUsername}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Additional Clinician Personal Info */}
+                  {selectedRole !== 'Parent' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Clinician Gender */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authGender}
+                        </label>
+                        <select
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value)}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        >
+                          <option value="">{t.authGenderSelect}</option>
+                          {genderOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Clinician Years Experience */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authYearsExp}
+                        </label>
+                        <input
+                          type="number"
+                          value={yearsExp}
+                          onChange={(e) => setYearsExp(e.target.value)}
+                          placeholder="e.g. 5"
+                          min="0"
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Confirm Password */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-500 block">
-                    {t.authConfirmPassword}
-                  </label>
+                {/* --- SECTION 2: CHILD INFO (PARENT FLOW ONLY) --- */}
+                {selectedRole === 'Parent' && (
+                  <div className="space-y-4 pt-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-sky-800 border-b border-sky-50 pb-2">
+                      {t.authChildInfo}
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Child Name */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authChildName}
+                        </label>
+                        <input
+                          type="text"
+                          value={childName}
+                          onChange={(e) => setChildName(e.target.value)}
+                          placeholder={isRtl ? 'اسم الطفل' : "Child's Name"}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        />
+                      </div>
+
+                      {/* Child Age */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authChildAge}
+                        </label>
+                        <input
+                          type="number"
+                          value={childAge}
+                          onChange={(e) => setChildAge(e.target.value)}
+                          placeholder={isRtl ? 'عمر الطفل' : "Child's Age"}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Diagnosis Level */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authDiagnosisLevel}
+                        </label>
+                        <select
+                          value={diagnosisLevel}
+                          onChange={(e) => setDiagnosisLevel(e.target.value)}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        >
+                          <option value="">{t.authLevelSelect}</option>
+                          {diagLevels.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Child Gender */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authGender}
+                        </label>
+                        <select
+                          value={childGender}
+                          onChange={(e) => setChildGender(e.target.value)}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        >
+                          <option value="">{t.authGenderSelect}</option>
+                          {genderOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Document & Photo Uploaders */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authChildPhoto}
+                        </label>
+                        <FileUploader
+                          label={t.authUploadPhoto}
+                          subtext={t.authUploadPhotoDesc}
+                          file={childPhoto}
+                          onFileSelect={setChildPhoto}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authBirthCert}
+                        </label>
+                        <FileUploader
+                          label={t.authUploadDoc}
+                          subtext={t.authUploadDocDesc}
+                          file={birthCert}
+                          onFileSelect={setBirthCert}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- SECTION 2: PROFESSIONAL INFO (CLINICIANS ONLY) --- */}
+                {selectedRole !== 'Parent' && (
+                  <div className="space-y-4 pt-2">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-sky-800 border-b border-sky-50 pb-2">
+                      {t.authProfessionalInfo}
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Professional Title */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authTitle}
+                        </label>
+                        <select
+                          value={profTitle}
+                          onChange={(e) => setProfTitle(e.target.value)}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        >
+                          <option value="">{t.authTitleSelect}</option>
+                          {profTitles.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Specialization */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authSpecialization}
+                        </label>
+                        <select
+                          value={specialization}
+                          onChange={(e) => setSpecialization(e.target.value)}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        >
+                          <option value="">{t.authSpecSelect}</option>
+                          {specializations.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Clinic Name */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authClinicName}
+                        </label>
+                        <input
+                          type="text"
+                          value={clinicName}
+                          onChange={(e) => setClinicName(e.target.value)}
+                          placeholder={isRtl ? 'اسم العيادة' : 'Clinic Name'}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        />
+                      </div>
+
+                      {/* Clinic Address */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-slate-500 block">
+                          {t.authClinicAddress}
+                        </label>
+                        <input
+                          type="text"
+                          value={clinicAddress}
+                          onChange={(e) => setClinicAddress(e.target.value)}
+                          placeholder={isRtl ? 'عنوان العيادة' : 'Clinic Address'}
+                          className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Clinician Verify Uploads */}
+                    {selectedRole === 'Doctor' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-500 block">
+                            {t.authNationalID}
+                          </label>
+                          <FileUploader
+                            label={t.authUploadDoc}
+                            subtext={t.authUploadDocDesc}
+                            file={nationalIdDoc}
+                            onFileSelect={setNationalIdDoc}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-500 block">
+                            {t.authMedicalLicense}
+                          </label>
+                          <FileUploader
+                            label={t.authUploadDoc}
+                            subtext={t.authUploadDocDesc}
+                            file={medLicenseDoc}
+                            onFileSelect={setMedLicenseDoc}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-500 block">
+                            {t.authCV}
+                          </label>
+                          <FileUploader
+                            label={t.authUploadDoc}
+                            subtext={t.authUploadDocDesc}
+                            file={cvDoc}
+                            onFileSelect={setCvDoc}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-500 block">
+                            {isRtl ? 'البطاقة الشخصية - الوجه (إجباري)' : 'National ID - Front (Required)'}
+                          </label>
+                          <FileUploader
+                            label={t.authUploadDoc}
+                            subtext={t.authUploadDocDesc}
+                            file={nationalIdFront}
+                            onFileSelect={setNationalIdFront}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-500 block">
+                            {isRtl ? 'البطاقة الشخصية - الخلف (إجباري)' : 'National ID - Back (Required)'}
+                          </label>
+                          <FileUploader
+                            label={t.authUploadDoc}
+                            subtext={t.authUploadDocDesc}
+                            file={nationalIdBack}
+                            onFileSelect={setNationalIdBack}
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2 space-y-3 mt-2">
+                          <label className="text-[10px] font-black uppercase text-slate-500 block">
+                            {isRtl ? 'شهادات التخرج والخبرة بختم النسر (مطلوب شهادة واحدة على الأقل)' : 'Graduation & Experience Certificates with state stamp (At least one is required)'}
+                          </label>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {certificates.map((file, idx) => (
+                              <div key={idx} className="space-y-1 relative">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[9px] font-bold text-slate-400">
+                                    {isRtl ? `شهادة #${idx + 1}` : `Certificate #${idx + 1}`}
+                                  </span>
+                                  {certificates.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = [...certificates];
+                                        updated.splice(idx, 1);
+                                        setCertificates(updated);
+                                      }}
+                                      className="text-red-400 hover:text-red-600 text-[10px] font-bold"
+                                    >
+                                      {isRtl ? 'حذف' : 'Remove'}
+                                    </button>
+                                  )}
+                                </div>
+                                <FileUploader
+                                  label={t.authUploadDoc}
+                                  subtext={t.authUploadDocDesc}
+                                  file={file}
+                                  onFileSelect={(selectedFile) => {
+                                    const updated = [...certificates];
+                                    updated[idx] = selectedFile;
+                                    setCertificates(updated);
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          {certificates.length < 5 && (
+                            <button
+                              type="button"
+                              onClick={() => setCertificates([...certificates, null])}
+                              className="mt-2 text-xs font-bold text-sky-500 hover:text-sky-600 transition-colors flex items-center space-x-1"
+                            >
+                              <span>+ {isRtl ? 'إضافة شهادة أخرى' : 'Add Another Credential'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Terms Checkbox */}
+                <div className="flex items-start space-x-3 pt-2 select-none">
                   <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                    id="agree-terms"
+                    type="checkbox"
+                    checked={agreeTerms}
+                    onChange={(e) => setAgreeTerms(e.target.checked)}
+                    className="w-4.5 h-4.5 text-sky-500 focus:ring-sky-400 border-slate-300 rounded cursor-pointer mt-0.5"
                     required
                   />
+                  <label htmlFor="agree-terms" className="text-xs text-slate-500 font-semibold cursor-pointer">
+                    {t.authTermsCheck}
+                  </label>
+                </div>
+
+                {/* Form Navigation Controls */}
+                <div className="flex items-center justify-between pt-6 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute ${isRtl ? 'left-4' : 'right-4'} text-slate-400 hover:text-sky-600 transition-colors`}
+                    onClick={() => setStep(1)}
+                    className="text-xs font-black text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {isRtl ? 'الرجوع لاختيار الدور' : 'Go back to Step 1'}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-8 py-3.5 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-sky-500/10 hover:shadow-sky-500/20 cursor-pointer flex items-center space-x-2"
+                  >
+                    {loading ? (
+                      <span>{isRtl ? 'جاري التحقق والتسجيل...' : 'Signing Up...'}</span>
+                    ) : (
+                      <>
+                        <span>{t.authSignUp}</span>
+                        <CheckCircle2 className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </div>
-
-                {/* Password Strength Meter */}
-                {password.length > 0 && (
-                  <div className="space-y-2 p-4 bg-slate-50 border border-slate-200/60 rounded-2xl text-left">
-                    <div className="flex items-center justify-between text-[11px] font-black uppercase text-slate-500">
-                      <span>{strengthT.strengthLabel}</span>
-                      <span className={
-                        strengthInfo.score === 4 ? 'text-emerald-500' :
-                          strengthInfo.score === 3 ? 'text-teal-500' :
-                            strengthInfo.score === 2 ? 'text-amber-500' :
-                              'text-rose-500'
-                      }>
-                        {strengthInfo.isCommon ? strengthT.weak + ' (Common)' :
-                          strengthInfo.score === 4 ? strengthT.strong :
-                            strengthInfo.score === 3 ? strengthT.good :
-                              strengthInfo.score === 2 ? strengthT.fair :
-                                strengthT.weak}
-                      </span>
-                    </div>
-
-                    {/* 4-bar indicator */}
-                    <div className="grid grid-cols-4 gap-1.5 h-1.5">
-                      {[1, 2, 3, 4].map((stepVal) => (
-                        <div
-                          key={stepVal}
-                          className={`h-full rounded-full transition-all duration-300 ${stepVal <= strengthInfo.score
-                            ? (strengthInfo.score === 4 ? 'bg-emerald-500' :
-                              strengthInfo.score === 3 ? 'bg-teal-500' :
-                                strengthInfo.score === 2 ? 'bg-amber-500' :
-                                  'bg-rose-500')
-                            : 'bg-slate-200'
-                            }`}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Checklist items */}
-                    <div className={`space-y-1 pt-1 text-[10px] font-bold text-slate-500`}>
-                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.length ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                        <span>{strengthT.reqLength}</span>
-                      </div>
-                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.upper ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                        <span>{strengthT.reqUpper}</span>
-                      </div>
-                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.lower ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                        <span>{strengthT.reqLower}</span>
-                      </div>
-                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.number ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                        <span>{strengthT.reqNumber}</span>
-                      </div>
-                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.special ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                        <span>{strengthT.reqSpecial}</span>
-                      </div>
-                      <div className={`flex items-center space-x-1.5 ${isRtl ? 'space-x-reverse' : ''}`}>
-                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white transition-colors ${strengthInfo.checks.noUsername ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                        <span>{strengthT.reqNoUsername}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Additional Clinician Personal Info */}
-                {selectedRole !== 'Parent' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Clinician Gender */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authGender}
-                      </label>
-                      <select
-                        value={gender}
-                        onChange={(e) => setGender(e.target.value)}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      >
-                        <option value="">{t.authGenderSelect}</option>
-                        {genderOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Clinician Years Experience */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authYearsExp}
-                      </label>
-                      <input
-                        type="number"
-                        value={yearsExp}
-                        onChange={(e) => setYearsExp(e.target.value)}
-                        placeholder="e.g. 5"
-                        min="0"
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
-
-              {/* --- SECTION 2: CHILD INFO (PARENT FLOW ONLY) --- */}
-              {selectedRole === 'Parent' && (
-                <div className="space-y-4 pt-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-sky-800 border-b border-sky-50 pb-2">
-                    {t.authChildInfo}
-                  </h4>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Child Name */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authChildName}
-                      </label>
-                      <input
-                        type="text"
-                        value={childName}
-                        onChange={(e) => setChildName(e.target.value)}
-                        placeholder={isRtl ? 'اسم الطفل' : "Child's Name"}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      />
-                    </div>
-
-                    {/* Child Age */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authChildAge}
-                      </label>
-                      <input
-                        type="number"
-                        value={childAge}
-                        onChange={(e) => setChildAge(e.target.value)}
-                        placeholder={isRtl ? 'عمر الطفل' : "Child's Age"}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Diagnosis Level */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authDiagnosisLevel}
-                      </label>
-                      <select
-                        value={diagnosisLevel}
-                        onChange={(e) => setDiagnosisLevel(e.target.value)}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      >
-                        <option value="">{t.authLevelSelect}</option>
-                        {diagLevels.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Child Gender */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authGender}
-                      </label>
-                      <select
-                        value={childGender}
-                        onChange={(e) => setChildGender(e.target.value)}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      >
-                        <option value="">{t.authGenderSelect}</option>
-                        {genderOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Document & Photo Uploaders */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authChildPhoto}
-                      </label>
-                      <FileUploader
-                        label={t.authUploadPhoto}
-                        subtext={t.authUploadPhotoDesc}
-                        file={childPhoto}
-                        onFileSelect={setChildPhoto}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authBirthCert}
-                      </label>
-                      <FileUploader
-                        label={t.authUploadDoc}
-                        subtext={t.authUploadDocDesc}
-                        file={birthCert}
-                        onFileSelect={setBirthCert}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* --- SECTION 2: PROFESSIONAL INFO (CLINICIANS ONLY) --- */}
-              {selectedRole !== 'Parent' && (
-                <div className="space-y-4 pt-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-sky-800 border-b border-sky-50 pb-2">
-                    {t.authProfessionalInfo}
-                  </h4>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Professional Title */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authTitle}
-                      </label>
-                      <select
-                        value={profTitle}
-                        onChange={(e) => setProfTitle(e.target.value)}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      >
-                        <option value="">{t.authTitleSelect}</option>
-                        {profTitles.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Specialization */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authSpecialization}
-                      </label>
-                      <select
-                        value={specialization}
-                        onChange={(e) => setSpecialization(e.target.value)}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      >
-                        <option value="">{t.authSpecSelect}</option>
-                        {specializations.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Clinic Name */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authClinicName}
-                      </label>
-                      <input
-                        type="text"
-                        value={clinicName}
-                        onChange={(e) => setClinicName(e.target.value)}
-                        placeholder={isRtl ? 'اسم العيادة' : 'Clinic Name'}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      />
-                    </div>
-
-                    {/* Clinic Address */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-slate-500 block">
-                        {t.authClinicAddress}
-                      </label>
-                      <input
-                        type="text"
-                        value={clinicAddress}
-                        onChange={(e) => setClinicAddress(e.target.value)}
-                        placeholder={isRtl ? 'عنوان العيادة' : 'Clinic Address'}
-                        className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Clinician Verify Uploads */}
-                  {selectedRole === 'Doctor' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-500 block">
-                          {t.authNationalID}
-                        </label>
-                        <FileUploader
-                          label={t.authUploadDoc}
-                          subtext={t.authUploadDocDesc}
-                          file={nationalIdDoc}
-                          onFileSelect={setNationalIdDoc}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-500 block">
-                          {t.authMedicalLicense}
-                        </label>
-                        <FileUploader
-                          label={t.authUploadDoc}
-                          subtext={t.authUploadDocDesc}
-                          file={medLicenseDoc}
-                          onFileSelect={setMedLicenseDoc}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-500 block">
-                          {t.authCV}
-                        </label>
-                        <FileUploader
-                          label={t.authUploadDoc}
-                          subtext={t.authUploadDocDesc}
-                          file={cvDoc}
-                          onFileSelect={setCvDoc}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-500 block">
-                          {isRtl ? 'البطاقة الشخصية - الوجه (إجباري)' : 'National ID - Front (Required)'}
-                        </label>
-                        <FileUploader
-                          label={t.authUploadDoc}
-                          subtext={t.authUploadDocDesc}
-                          file={nationalIdFront}
-                          onFileSelect={setNationalIdFront}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-500 block">
-                          {isRtl ? 'البطاقة الشخصية - الخلف (إجباري)' : 'National ID - Back (Required)'}
-                        </label>
-                        <FileUploader
-                          label={t.authUploadDoc}
-                          subtext={t.authUploadDocDesc}
-                          file={nationalIdBack}
-                          onFileSelect={setNationalIdBack}
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2 space-y-3 mt-2">
-                        <label className="text-[10px] font-black uppercase text-slate-500 block">
-                          {isRtl ? 'شهادات التخرج والخبرة بختم النسر (مطلوب شهادة واحدة على الأقل)' : 'Graduation & Experience Certificates with state stamp (At least one is required)'}
-                        </label>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {certificates.map((file, idx) => (
-                            <div key={idx} className="space-y-1 relative">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[9px] font-bold text-slate-400">
-                                  {isRtl ? `شهادة #${idx + 1}` : `Certificate #${idx + 1}`}
-                                </span>
-                                {certificates.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const updated = [...certificates];
-                                      updated.splice(idx, 1);
-                                      setCertificates(updated);
-                                    }}
-                                    className="text-red-400 hover:text-red-600 text-[10px] font-bold"
-                                  >
-                                    {isRtl ? 'حذف' : 'Remove'}
-                                  </button>
-                                )}
-                              </div>
-                              <FileUploader
-                                label={t.authUploadDoc}
-                                subtext={t.authUploadDocDesc}
-                                file={file}
-                                onFileSelect={(selectedFile) => {
-                                  const updated = [...certificates];
-                                  updated[idx] = selectedFile;
-                                  setCertificates(updated);
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-
-                        {certificates.length < 5 && (
-                          <button
-                            type="button"
-                            onClick={() => setCertificates([...certificates, null])}
-                            className="mt-2 text-xs font-bold text-sky-500 hover:text-sky-600 transition-colors flex items-center space-x-1"
-                          >
-                            <span>+ {isRtl ? 'إضافة شهادة أخرى' : 'Add Another Credential'}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Terms Checkbox */}
-              <div className="flex items-start space-x-3 pt-2 select-none">
-                <input
-                  id="agree-terms"
-                  type="checkbox"
-                  checked={agreeTerms}
-                  onChange={(e) => setAgreeTerms(e.target.checked)}
-                  className="w-4.5 h-4.5 text-sky-500 focus:ring-sky-400 border-slate-300 rounded cursor-pointer mt-0.5"
-                  required
-                />
-                <label htmlFor="agree-terms" className="text-xs text-slate-500 font-semibold cursor-pointer">
-                  {t.authTermsCheck}
-                </label>
-              </div>
-
-              {/* Form Navigation Controls */}
-              <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="text-xs font-black text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {isRtl ? 'الرجوع لاختيار الدور' : 'Go back to Step 1'}
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-8 py-3.5 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-300 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-sky-500/10 hover:shadow-sky-500/20 cursor-pointer flex items-center space-x-2"
-                >
-                  {loading ? (
-                    <span>{isRtl ? 'جاري التحقق والتسجيل...' : 'Signing Up...'}</span>
-                  ) : (
-                    <>
-                      <span>{t.authSignUp}</span>
-                      <CheckCircle2 className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-
             </form>
           </motion.div>
         )}
