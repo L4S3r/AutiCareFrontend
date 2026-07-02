@@ -113,6 +113,7 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [gender, setGender] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -337,8 +338,8 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
         }
       } else if (selectedRole === 'Therapist') {
         if (!nationalIdFront || !nationalIdBack || !certificates[0]) {
-          setError(isRtl 
-            ? 'برجاء رفع وثيقة الرقم القومي (الوجه والخلف) بالإضافة إلى شهادة واحدة على الأقل مختومة بختم النسر' 
+          setError(isRtl
+            ? 'برجاء رفع وثيقة الرقم القومي (الوجه والخلف) بالإضافة إلى شهادة واحدة على الأقل مختومة بختم النسر'
             : 'Please upload your National ID (Front & Back) and at least one certificate with state stamp');
           return;
         }
@@ -395,9 +396,10 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
         formData.append('clinic', `${profTitle} - ${clinicName}`);
 
         if (selectedRole === 'Doctor') {
-          if (nationalIdDoc) formData.append('nationalIdDoc', nationalIdDoc);
-          if (medLicenseDoc) formData.append('medLicenseDoc', medLicenseDoc);
-          if (cvDoc) formData.append('cvDoc', cvDoc);
+          // Unify Doctor inputs into the backend-supported practitioner parameters
+          if (nationalIdDoc) formData.append('nationalIdFront', nationalIdDoc);
+          if (medLicenseDoc) formData.append('certificates', medLicenseDoc);
+          if (cvDoc) formData.append('certificates', cvDoc);
         } else if (selectedRole === 'Therapist') {
           if (nationalIdFront) formData.append('nationalIdFront', nationalIdFront);
           if (nationalIdBack) formData.append('nationalIdBack', nationalIdBack);
@@ -553,8 +555,8 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                 {selectedRole === 'Parent'
                   ? t.authJoinParent
                   : selectedRole === 'Doctor'
-                  ? (isRtl ? 'انضم لأوتي كير كطبيب' : 'Join AutiCare as Doctor')
-                  : (isRtl ? 'انضم لأوتي كير كمعالج' : 'Join AutiCare as Therapist')
+                    ? (isRtl ? 'انضم لأوتي كير كطبيب' : 'Join AutiCare as Doctor')
+                    : (isRtl ? 'انضم لأوتي كير كمعالج' : 'Join AutiCare as Therapist')
                 }
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed font-semibold">
@@ -622,22 +624,36 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                       className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className={`absolute ${isRtl ? 'left-4' : 'right-4'} text-slate-400 hover:text-sky-600 transition-colors`}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
+                </div>
 
-                  {/* Confirm Password */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-500 block">
-                      {t.authConfirmPassword}
-                    </label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
-                      required
-                    />
-                  </div>
+                {/* Confirm Password */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-500 block">
+                    {t.authConfirmPassword}
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={`absolute ${isRtl ? 'left-4' : 'right-4'} text-slate-400 hover:text-sky-600 transition-colors`}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
 
                 {/* Password Strength Meter */}
@@ -1009,7 +1025,7 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
                         <label className="text-[10px] font-black uppercase text-slate-500 block">
                           {isRtl ? 'شهادات التخرج والخبرة بختم النسر (مطلوب شهادة واحدة على الأقل)' : 'Graduation & Experience Certificates with state stamp (At least one is required)'}
                         </label>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {certificates.map((file, idx) => (
                             <div key={idx} className="space-y-1 relative">
@@ -1263,6 +1279,6 @@ export default function SignUp({ language, onSuccess, onNavigateToLogin }: SignU
         )}
 
       </AnimatePresence>
-    </div>
+    </div >
   );
 }
