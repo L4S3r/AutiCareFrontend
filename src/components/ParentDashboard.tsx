@@ -22,17 +22,25 @@ import {
 interface ParentDashboardProps {
   language: Language;
   parentUser: {
-    id: string;
+    _id?: string;
+    id?: string;
     name: string;
     email: string;
     avatar?: string;
-    childName?: string;
-    asdLevel?: string;
-    doctorId?: string;
-    therapistId?: string;
-    doctorName?: string;
-    therapistName?: string;
-    birthCertificateUrl?: string;
+    child?: {
+      _id?: string;
+      id?: string;
+      name: string;
+      username: string;
+      age?: string | number;
+      calculatedAge?: string | number;
+      level?: string;
+      gender?: string;
+      avatar?: string;
+      birthCertificateUrl?: string;
+      assignedDoctor?: { _id: string; name: string } | string | null;
+      assignedTherapists?: (string | { _id: string; name: string })[];
+    };
   };
   onLogout: () => void;
 }
@@ -49,20 +57,32 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [loading, setLoading] = useState(false);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
 
+  const parentId = parentUser._id || parentUser.id || '';
+  const child = parentUser.child;
+  const childId = child?._id || child?.id || '';
+  const childName = child?.name || '';
+  const childLevel = child?.level || '';
+  const childUsername = child?.username || '';
+  const childAvatarUrl = child?.avatar || '';
+  const childBirthCertUrl = child?.birthCertificateUrl || '';
+
+  const doctorObj = child?.assignedDoctor;
+  const doctorUserId = doctorObj && typeof doctorObj === 'object' ? (doctorObj as any)._id || '' : '';
+  const doctorNameStr = doctorObj && typeof doctorObj === 'object' ? (doctorObj as any).name || '' : '';
+
+  const therapists = child?.assignedTherapists || [];
+  const firstTherapist = therapists[0];
+  const therapistUserId = firstTherapist && typeof firstTherapist === 'object' ? (firstTherapist as any)._id || '' : (typeof firstTherapist === 'string' ? firstTherapist : '');
+  const therapistNameStr = firstTherapist && typeof firstTherapist === 'object' ? (firstTherapist as any).name || '' : '';
+
   const [parentAvatar, setParentAvatar] = useState(parentUser.avatar || '');
-  const [childAvatar, setChildAvatar] = useState('');
-  const [birthCertificateUrl, setBirthCertificateUrl] = useState(parentUser.birthCertificateUrl || '');
+  const [childAvatar, setChildAvatar] = useState(childAvatarUrl || '');
+  const [birthCertificateUrl, setBirthCertificateUrl] = useState(childBirthCertUrl || '');
 
   const [nutritionPlan, setNutritionPlan] = useState<any | null>(null);
   const [predictionData, setPredictionData] = useState<any | null>(null);
   const [predictionError, setPredictionError] = useState('');
   const [logs, setLogs] = useState<any[]>([]);
-
-  const assignedChildId = parentUser.id || '';
-  const doctorUserId = parentUser.doctorId || '';
-  const therapistUserId = parentUser.therapistId || '';
-  const doctorName = parentUser.doctorName || '';
-  const therapistName = parentUser.therapistName || '';
 
   // ─── NOTIFICATIONS ───────────────────────────────────────
   const [notifOpen, setNotifOpen] = useState(false);
@@ -92,12 +112,12 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
   const loadEcosystemLogs = async () => {
     try {
-      const res = await getBehaviorLogs(assignedChildId);
+      const res = await getBehaviorLogs(childId);
       if (res.success && res.data) {
         setLogs(res.data);
       }
     } catch (err) {
-      console.error("Failed to restore behavioral index collections:", err);
+      console.error("Failed to restore behavioral logs:", err);
     }
   };
 
@@ -105,12 +125,12 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     try {
       setLoadingPrediction(true);
       setPredictionError('');
-      const predRes = await getAIPrediction(assignedChildId, language);
+      const predRes = await getAIPrediction(childId, language);
       if (predRes?.success && predRes?.data) {
         setPredictionData(predRes.data);
       }
     } catch (err) {
-      setPredictionError(isRtl ? 'تحليل الذكاء الاصطناعي قيد المعايرة حالياً.' : 'AI analytics loop currently calibrating.');
+      setPredictionError(isRtl ? 'التحليل قيد المعايرة' : 'AI analytics calibrating.');
     } finally {
       setLoadingPrediction(false);
     }
@@ -120,27 +140,28 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     const fetchNutritionData = async () => {
       try {
         setLoading(true);
-        const res = await getNutritionPlans(assignedChildId);
+        const res = await getNutritionPlans(childId);
         if (res.success && res.data && res.data.length > 0) {
           setNutritionPlan(res.data[0]);
         }
       } catch (err) {
-        console.error("Error retrieving clinical care records:", err);
+        console.error("Error fetching nutrition plan:", err);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchNutritionData();
-    loadEcosystemLogs();
-    fetchAIAnalysisModel();
-  }, [assignedChildId, language]);
+    if (childId) {
+      fetchNutritionData();
+      loadEcosystemLogs();
+      fetchAIAnalysisModel();
+    }
+  }, [childId, language]);
 
   useEffect(() => {
     const loadConversationHistory = async () => {
-      if (!assignedChildId || !activePartnerId) return;
+      if (!childId || !activePartnerId) return;
       try {
-        const res = await getChatHistory(assignedChildId, activePartnerId);
+        const res = await getChatHistory(childId, activePartnerId);
         if (res.success && res.data) {
           setMessages(prev => {
             const next = { ...prev };
@@ -149,21 +170,22 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
           });
         }
       } catch (err) {
-        console.error("Failed to restore message pipeline canvas:", err);
+        console.error("Failed to load chat history:", err);
       }
     };
     loadConversationHistory();
-  }, [activeChannel, assignedChildId, activePartnerId]);
+  }, [activeChannel, childId, activePartnerId]);
 
   useEffect(() => {
+    if (!parentId) return;
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
     const socket = io(socketUrl);
     socketRef.current = socket;
 
-    socket.emit('register_user', parentUser.id);
+    socket.emit('register_user', parentId);
 
     socket.on('receive_direct_message', (incomingMsg: any) => {
-      if (incomingMsg.patientId === assignedChildId) {
+      if (incomingMsg.patientId === childId) {
         const channelKey = incomingMsg.senderRole === 'doctor' ? 'doctor' : 'therapist';
         setMessages(prev => {
           const next = { ...prev };
@@ -177,7 +199,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
       socket.off('receive_direct_message');
       socket.disconnect();
     };
-  }, [parentUser.id, assignedChildId]);
+  }, [parentId, childId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
@@ -242,8 +264,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     if (!inputText.trim() || !socketRef.current) return;
 
     const payload = {
-      patientId: assignedChildId,
-      senderId: parentUser.id,
+      patientId: childId,
+      senderId: parentId,
       senderRole: 'parent',
       receiverId: activePartnerId,
       text: inputText.trim()
@@ -253,8 +275,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
     const localOptimisticMessage = {
       _id: Date.now().toString(),
-      patientId: assignedChildId,
-      sender: parentUser.id,
+      patientId: childId,
+      sender: parentId,
       senderRole: 'parent',
       receiver: activePartnerId,
       text: inputText.trim(),
@@ -272,9 +294,10 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
   const handleAddLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!childId) return;
     try {
       const payload = {
-        childId: assignedChildId,
+        childId,
         mood: logMood,
         sleepHours: parseFloat(logSleep),
         medication: logMedications.map(m => ({ name: m.name, taken: m.taken, time: m.time })),
@@ -290,7 +313,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
         setTimeout(() => setLogSuccess(false), 3500);
       }
     } catch (err) {
-      console.error("Failed to commit telemetry indices:", err);
+      console.error("Failed to save log:", err);
     }
   };
 
@@ -302,11 +325,11 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
         const res = await updateProfileAvatar(file);
         if (res.success) setParentAvatar(res.data.avatar);
       } else {
-        const res = await updatePatientAvatar(assignedChildId, file);
+        const res = await updatePatientAvatar(childId, file);
         if (res.success) setChildAvatar(res.data.avatar);
       }
     } catch (err) {
-      console.error("Cloudinary upload mutation aborted:", err);
+      console.error("Avatar upload failed:", err);
     }
   };
 
@@ -314,12 +337,12 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     try {
-      const res = await uploadPatientBirthCertificate(assignedChildId, file);
+      const res = await uploadPatientBirthCertificate(childId, file);
       if (res.success) {
         setBirthCertificateUrl(res.data.birthCertificateUrl);
       }
     } catch (err) {
-      console.error("Failed to stream regulatory credentials:", err);
+      console.error("Birth certificate upload failed:", err);
     }
   };
 
@@ -378,7 +401,12 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
           {/* HEADER */}
           <div className={`border-b pb-4 flex justify-between items-center ${isRtl ? 'flex-row-reverse' : ''}`}>
             <div>
-              <h2 className="text-xl font-black text-slate-800">{isRtl ? `مرحباً، عائلة ${parentUser.childName || ''}` : `Welcome, ${parentUser.childName || parentUser.name}`}</h2>
+              <h2 className="text-xl font-black text-slate-800">
+                {isRtl
+                  ? `مرحباً، ${childName || parentUser.name}`
+                  : `Welcome, ${childName || parentUser.name}`
+                }
+              </h2>
               <p className="text-xs text-slate-400 font-semibold">{isRtl ? 'بوابة الرعاية السلوكية والغذائية' : 'Behavioral & Nutrition Care Portal'}</p>
             </div>
 
@@ -433,19 +461,31 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
               <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs md:col-span-2 space-y-4">
                 <h3 className={`text-sm font-black text-slate-800 flex items-center gap-2 border-b pb-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
                   <Activity className="w-4 h-4 text-indigo-500" />
-                  <span>{isRtl ? 'الملف التشخيصي للطفل' : 'Child Diagnostic Profile'}</span>
+                  <span>{isRtl ? 'بيانات الطفل' : 'Child Data'}</span>
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'الاسم' : 'Child Name'}</span>
-                    <span className="text-sm font-black text-slate-800 block mt-1">{parentUser.childName || ''}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'الاسم' : 'Name'}</span>
+                    <span className="text-sm font-black text-slate-800 block mt-1">{childName || '-'}</span>
                   </div>
                   <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'مستوى التوحد' : 'ASD Level'}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'المستوى' : 'Level'}</span>
                     <span className="mt-1 bg-indigo-50 text-indigo-700 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase inline-block">
-                      {parentUser.asdLevel || '-'}
+                      {childLevel || '-'}
                     </span>
                   </div>
+                  {childUsername && (
+                    <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'اسم المستخدم' : 'Username'}</span>
+                      <span className="text-sm font-mono font-black text-slate-800 block mt-1">{childUsername}</span>
+                    </div>
+                  )}
+                  {child?.age && (
+                    <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'العمر' : 'Age'}</span>
+                      <span className="text-sm font-black text-slate-800 block mt-1">{child.calculatedAge || child.age} {isRtl ? 'سنة' : 'years'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -458,15 +498,15 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   <div className={`p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3 ${isRtl ? 'flex-row-reverse text-right' : ''}`}>
                     <span className="text-xl">👨‍⚕️</span>
                     <div>
-                      <p className="text-xs font-bold text-slate-800">{doctorName || (isRtl ? 'غير معين' : 'Not assigned')}</p>
+                      <p className="text-xs font-bold text-slate-800">{doctorNameStr || (isRtl ? 'غير معين' : 'Not assigned')}</p>
                       <p className="text-[9px] text-blue-500 font-bold">{isRtl ? 'الطبيب المشرف' : 'Supervising Physician'}</p>
                     </div>
                   </div>
                   <div className={`p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3 ${isRtl ? 'flex-row-reverse text-right' : ''}`}>
                     <span className="text-xl">👩‍🏫</span>
                     <div>
-                      <p className="text-xs font-bold text-slate-800">{therapistName || (isRtl ? 'غير معين' : 'Not assigned')}</p>
-                      <p className="text-[9px] text-purple-500 font-bold">{isRtl ? 'أخصيي السلوك' : 'ABA Specialist'}</p>
+                      <p className="text-xs font-bold text-slate-800">{therapistNameStr || (isRtl ? 'غير معين' : 'Not assigned')}</p>
+                      <p className="text-[9px] text-purple-500 font-bold">{isRtl ? 'أخصائي السلوك' : 'ABA Specialist'}</p>
                     </div>
                   </div>
                 </div>
@@ -666,7 +706,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         <button type="button" onClick={() => setActiveChannel('doctor')} className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : ''} ${activeChannel === 'doctor' ? 'bg-white dark:bg-slate-700 shadow-xs border border-slate-100 dark:border-slate-600 font-black text-indigo-600' : 'opacity-60 hover:opacity-100'}`}>
                           <span className="text-base">👨‍⚕️</span>
                           <div className="text-[11px]">
-                            <p className="text-slate-800 dark:text-slate-200">{doctorName || (isRtl ? 'الطبيب' : 'Doctor')}</p>
+                            <p className="text-slate-800 dark:text-slate-200">{doctorNameStr || (isRtl ? 'الطبيب' : 'Doctor')}</p>
                             <p className="text-[9px] text-blue-500 font-bold">{isRtl ? 'الطبيب المشرف' : 'Physician'}</p>
                           </div>
                         </button>
@@ -675,8 +715,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                         <button type="button" onClick={() => setActiveChannel('therapist')} className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : ''} ${activeChannel === 'therapist' ? 'bg-white dark:bg-slate-700 shadow-xs border border-slate-100 dark:border-slate-600 font-black text-purple-600' : 'opacity-60 hover:opacity-100'}`}>
                           <span className="text-base">👩‍🏫</span>
                           <div className="text-[11px]">
-                            <p className="text-slate-800 dark:text-slate-200">{therapistName || (isRtl ? 'المعالج' : 'Therapist')}</p>
-                            <p className="text-[9px] text-purple-500 font-bold">{isRtl ? 'أخصيي السلوك' : 'ABA Specialist'}</p>
+                            <p className="text-slate-800 dark:text-slate-200">{therapistNameStr || (isRtl ? 'المعالج' : 'Therapist')}</p>
+                            <p className="text-[9px] text-purple-500 font-bold">{isRtl ? 'أخصائي السلوك' : 'ABA Specialist'}</p>
                           </div>
                         </button>
                       )}
@@ -692,7 +732,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                       <div className="text-xs text-slate-400 text-center py-8">{isRtl ? 'لا توجد رسائل بعد' : 'No messages yet'}</div>
                     ) : (
                       messages[activeChannel]?.map((msg: any) => {
-                        const isParent = msg.senderRole === 'parent' || msg.sender === parentUser.id;
+                        const isParent = msg.senderRole === 'parent' || msg.sender === parentId;
                         return (
                           <div key={msg._id || msg.id || Math.random()} className={`flex flex-col ${isParent ? 'items-end' : 'items-start'} animate-fade-in`}>
                             <div className={`max-w-[80%] p-2.5 rounded-2xl text-xs leading-relaxed ${isParent ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-bl-none border border-slate-100 dark:border-slate-600'}`}>
