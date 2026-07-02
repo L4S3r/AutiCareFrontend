@@ -43,3 +43,4 @@ frontend.md
 src/components/AppHeader.tsx.old
 src/components/AppSidebar.tsx.old
 src/components/Features.tsx.old
+src/components/ParentDashboard.tsx.new
