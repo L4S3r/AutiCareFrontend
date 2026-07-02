@@ -1,1029 +1,815 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
-  Smile, Brain, Target, Star, Trophy, Users, LogOut, Heart,
-  Sparkles, Activity, Plus, LineChart, FileText, Settings,
-  ShieldCheck, ChevronRight, CheckCircle2, AlertCircle, ChevronLeft,
-  Utensils, Pill, Ban, HelpCircle, Mic, Upload
+  Dna, MessageSquare, Settings, LogOut, ChevronRight,
+  ChevronLeft, ShieldCheck, User, CheckCircle2,
+  AlertCircle, Send, Users, Stethoscope, Sparkles, Activity,
+  Bell, Mic, Upload, Trash2, Sliders
 } from 'lucide-react';
 import { Language } from '../types';
-import { TRANSLATIONS } from '../data';
-import { getAIPrediction, getPatients, getBehaviorLogs, createBehaviorLog, getNutritionPlans, updateProfileAvatar, updatePatientAvatar, uploadPatientBirthCertificate } from '../api';
-import { ResponsiveContainer, LineChart as ReLineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import AppHeader from './AppHeader';
+import { io, Socket } from 'socket.io-client';
+import {
+  getNutritionPlans,
+  getChatHistory,
+  getBehaviorLogs,
+  createBehaviorLog,
+  getAIPrediction,
+  updateProfileAvatar,
+  updatePatientAvatar,
+  uploadPatientBirthCertificate
+} from '../api';
 
 interface ParentDashboardProps {
   language: Language;
   parentUser: {
+    id: string;
     name: string;
     email: string;
     avatar?: string;
-    child?: {
-      id?: string;
-      name: string;
-      username: string;
-      age: string | number;
-      calculatedAge?: string | number;
-      level: string;
-      gender: string;
-      avatar?: string;
-      birthCertificateUrl?: string;
-    };
+    childName?: string;
+    asdLevel?: string;
+    doctorId?: string;
+    therapistId?: string;
+    doctorName?: string;
+    therapistName?: string;
+    birthCertificateUrl?: string;
   };
   onLogout: () => void;
 }
 
-export default function ParentDashboard({ language, parentUser, onLogout }: ParentDashboardProps) {
-  const t = TRANSLATIONS[language];
-  const isRtl = language === 'ar';
+interface ChatRegistry {
+  doctor: any[];
+  therapist: any[];
+}
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'progress' | 'nutrition' | 'clinicians' | 'logs' | 'settings'>('dashboard');
+export default function ParentDashboard({ language, parentUser, onLogout }: ParentDashboardProps) {
+  const isRtl = language === 'ar';
+  const [activeTab, setActiveTab] = useState<'overview' | 'logs' | 'nutrition' | 'chat' | 'settings'>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [dummyState, setDummyState] = useState(0);
+  const [loadingPrediction, setLoadingPrediction] = useState(false);
 
-  // Daily Behavior Logging Form States
-  const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry' | 'distressed'>('happy');
+  const [parentAvatar, setParentAvatar] = useState(parentUser.avatar || '');
+  const [childAvatar, setChildAvatar] = useState('');
+  const [birthCertificateUrl, setBirthCertificateUrl] = useState(parentUser.birthCertificateUrl || '');
+
+  const [nutritionPlan, setNutritionPlan] = useState<any | null>(null);
+  const [predictionData, setPredictionData] = useState<any | null>(null);
+  const [predictionError, setPredictionError] = useState('');
+  const [logs, setLogs] = useState<any[]>([]);
+
+  const assignedChildId = parentUser.id || '';
+  const doctorUserId = parentUser.doctorId || '';
+  const therapistUserId = parentUser.therapistId || '';
+  const doctorName = parentUser.doctorName || '';
+  const therapistName = parentUser.therapistName || '';
+
+  // ─── NOTIFICATIONS ───────────────────────────────────────
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+  // ─── DAILY BEHAVIOR LOGGING FORM STATES ───────────────────
+  const [logMood, setLogMood] = useState<'very_happy' | 'happy' | 'neutral' | 'sad' | 'very_sad' | 'anxious' | 'angry'>('happy');
   const [logSleep, setLogSleep] = useState('8');
-  const [logMedications, setLogMedications] = useState([
-    { name: 'Methyl Folate (Metafolin)', time: 'Morning', taken: true },
-    { name: 'Methylcobalamin (B12)', time: 'Morning', taken: true },
-    { name: 'Vitamin D3 + K2', time: 'Noon', taken: true },
-  ]);
   const [logNotes, setLogNotes] = useState('');
   const [logSuccess, setLogSuccess] = useState(false);
+  const [logMedications, setLogMedications] = useState<{ name: string; time: string; taken: boolean }[]>([]);
+
+  // ─── VOICE NLP ────────────────────────────────────────────
   const [isListening, setIsListening] = useState(false);
-  const [voiceError, setVoiceError] = useState<string>('');
+  const [voiceError, setVoiceError] = useState('');
+  const recognitionRef = useRef<any>(null);
   const shouldBeListeningRef = useRef(false);
 
-  const toggleMedication = (index: number) => {
-    setLogMedications(prev => prev.map((m, i) => i === index ? { ...m, taken: !m.taken } : m));
+  // ─── CHAT ─────────────────────────────────────────────────
+  const [activeChannel, setActiveChannel] = useState<'doctor' | 'therapist'>('doctor');
+  const [messages, setMessages] = useState<ChatRegistry>({ doctor: [], therapist: [] });
+  const [inputText, setInputText] = useState('');
+  const socketRef = useRef<Socket | null>(null);
+
+  const activePartnerId = activeChannel === 'doctor' ? doctorUserId : therapistUserId;
+
+  const loadEcosystemLogs = async () => {
+    try {
+      const res = await getBehaviorLogs(assignedChildId);
+      if (res.success && res.data) {
+        setLogs(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to restore behavioral index collections:", err);
+    }
   };
 
-  const sleepLabel = (h: number) => h >= 9 ? '🌟 Excellent' : h >= 7 ? '✅ Good' : h >= 5 ? '⚠️ Fair' : '❌ Poor';
-  const sleepColor = (h: number) => h >= 9 ? '#10b981' : h >= 7 ? '#0ea5e9' : h >= 5 ? '#f59e0b' : '#ef4444';
+  const fetchAIAnalysisModel = async () => {
+    try {
+      setLoadingPrediction(true);
+      setPredictionError('');
+      const predRes = await getAIPrediction(assignedChildId, language);
+      if (predRes?.success && predRes?.data) {
+        setPredictionData(predRes.data);
+      }
+    } catch (err) {
+      setPredictionError(isRtl ? 'تحليل الذكاء الاصطناعي قيد المعايرة حالياً.' : 'AI analytics loop currently calibrating.');
+    } finally {
+      setLoadingPrediction(false);
+    }
+  };
 
-  // Natural Language Processing Text Translation Micro-Helper
-  const processVoiceInputNLP = (text: string) => {
-    const mapSpokenNumber = (word: string): number => {
-      const num = parseFloat(word);
-      if (!isNaN(num)) return num;
-
-      const mapping: { [key: string]: number } = {
-        'half': 0.5,
-        'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-        'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
-        'eleven': 11, 'twelve': 12,
-        // Arabic words
-        '\u0646\u0635': 0.5, '\u0646\u0635\u0641': 0.5,
-        '\u0633\u0627\u0639\u0629': 1, '\u0633\u0627\u0639\u062a\u064a\u0646': 2, '\u062b\u0644\u0627\u062b': 3, '\u062b\u0644\u0627\u062b\u0629': 3,
-        '\u0623\u0631\u0628\u0639': 4, '\u0623\u0631\u0628\u0639\u0629': 4, '\u062e\u0645\u0633': 5, '\u062e\u0645\u0633\u0629': 5,
-        '\u0633\u062a': 6, '\u0633\u062a\u0629': 6, '\u0633\u0628\u0639': 7, '\u0633\u0628\u0639\u0629': 7,
-        '\u062b\u0645\u0627\u0646': 8, '\u062b\u0645\u0627\u0646\u064a': 8, '\u062b\u0645\u0627\u0646\u064a\u0629': 8, '\u062a\u0633\u0639': 9,
-        '\u062a\u0633\u0639\u0629': 9, '\u0639\u0634\u0631': 10, '\u0639\u0634\u0631\u0629': 10
-      };
-
-      return mapping[word.toLowerCase().trim()] ?? 8;
+  useEffect(() => {
+    const fetchNutritionData = async () => {
+      try {
+        setLoading(true);
+        const res = await getNutritionPlans(assignedChildId);
+        if (res.success && res.data && res.data.length > 0) {
+          setNutritionPlan(res.data[0]);
+        }
+      } catch (err) {
+        console.error("Error retrieving clinical care records:", err);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const numWords = '\\d+(?:\\.\\d+)?|half|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve'
-      + '|\u0646\u0635|\u0646\u0635\u0641|\u0633\u0627\u0639\u0629|\u0633\u0627\u0639\u062a\u064a\u0646|\u062b\u0644\u0627\u062b|\u062b\u0644\u0627\u062b\u0629|\u0623\u0631\u0628\u0639|\u0623\u0631\u0628\u0639\u0629|\u062e\u0645\u0633|\u062e\u0645\u0633\u0629|\u0633\u062a|\u0633\u062a\u0629|\u0633\u0628\u0639|\u0633\u0628\u0639\u0629|\u062b\u0645\u0627\u0646|\u062b\u0645\u0627\u0646\u064a\u0629|\u062a\u0633\u0639|\u062a\u0633\u0639\u0629|\u0639\u0634\u0631|\u0639\u0634\u0631\u0629';
-    // Optional filler: "slept FOR 6", "slept ABOUT seven", "slept ONLY 5"
-    const optFiller = '(?:for|about|around|only|just|nearly|approximately|roughly|\u0644\u0645\u062f\u0629|\u062d\u0648\u0627\u0644\u064a|\u062a\u0642\u0631\u064a\u0628\u0627\u064b|\u0641\u0642\u0637)?\\s*';
+    fetchNutritionData();
+    loadEcosystemLogs();
+    fetchAIAnalysisModel();
+  }, [assignedChildId, language]);
 
-    // 1. Extract sleep hours — handles "slept for 6 hours", "7 hours of sleep", etc.
-    const sleepMatch =
-      text.match(new RegExp(`(?:slept?|sleep|\u0646\u0627\u0645|\u0646\u0627\u0645\u062a)\\s*${optFiller}(${numWords})`, 'i')) ||
-      text.match(new RegExp(`(${numWords})\\s*(?:hours?\\s+of\\s+)?(?:sleep|slept|\u0633\u0627\u0639\u0627\u062a\\s+\u0646\u0648\u0645)`, 'i'));
-    if (sleepMatch) {
-      const hours = Math.min(Math.max(mapSpokenNumber(sleepMatch[1]), 0.5), 24);
-      setLogSleep(hours.toString());
-    }
-
-    // 2. Meltdown count — "had 3 meltdowns", "two tantrums today"
-    const meltdownCountMatch = text.match(
-      /(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:meltdowns?|tantrums?|crises|\u0627\u0646\u0647\u064a\u0627\u0631|\u0646\u0648\u0628\u0629)/i
-    );
-    if (meltdownCountMatch) {
-      setLogMood('angry');
-    } else {
-      // 3. Mood keyword detection (only if no meltdown count)
-      if (/meltdown|tantrum|crisis|\u0627\u0646\u0647\u064a\u0627\u0631|\u0646\u0648\u0628\u0629/i.test(text)) {
-        setLogMood('angry');
-      } else if (/\b(?:calm|relaxed|peaceful|great|happy|excellent|\u0647\u0627\u062f\u0626|\u0645\u0631\u062a\u0627\u062d)\b/i.test(text)) {
-        setLogMood('happy');
-      } else if (/\b(?:sad|upset|crying|unhappy|\u062d\u0632\u064a\u0646|\u064a\u0628\u0643\u064a)\b/i.test(text)) {
-        setLogMood('sad');
-      } else if (/\b(?:anxious|nervous|worried|stressed|\u0642\u0644\u0642)\b/i.test(text)) {
-        setLogMood('anxious');
+  useEffect(() => {
+    const loadConversationHistory = async () => {
+      if (!assignedChildId || !activePartnerId) return;
+      try {
+        const res = await getChatHistory(assignedChildId, activePartnerId);
+        if (res.success && res.data) {
+          setMessages(prev => {
+            const next = { ...prev };
+            next[activeChannel] = res.data || [];
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error("Failed to restore message pipeline canvas:", err);
       }
-    }
+    };
+    loadConversationHistory();
+  }, [activeChannel, assignedChildId, activePartnerId]);
 
-    // 4. Medication detection — sets all meds taken/not taken based on voice
-    if (/\b(?:took|taken|gave)\b.*\b(?:meds?|medication|medicine|pill|\u062f\u0648\u0627\u0621|\u0623\u0639\u0637\u064a\u062a\u0647)\b/i.test(text)) {
-      setLogMedications(prev => prev.map(m => ({ ...m, taken: true })));
-    } else if (/\b(?:didn't|did not|no|skipped|forgot|refused|\u0644\u0645 \u064a\u0623\u062e\u0630|\u0646\u0633\u064a)\b.*\b(?:meds?|medication|medicine|pill|\u062f\u0648\u0627\u0621)\b/i.test(text)) {
-      setLogMedications(prev => prev.map(m => ({ ...m, taken: false })));
-    }
-  };
+  useEffect(() => {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const socket = io(socketUrl);
+    socketRef.current = socket;
 
+    socket.emit('register_user', parentUser.id);
 
-  const recognitionRef = useRef<any>(null);
+    socket.on('receive_direct_message', (incomingMsg: any) => {
+      if (incomingMsg.patientId === assignedChildId) {
+        const channelKey = incomingMsg.senderRole === 'doctor' ? 'doctor' : 'therapist';
+        setMessages(prev => {
+          const next = { ...prev };
+          next[channelKey] = [...next[channelKey], incomingMsg];
+          return next;
+        });
+      }
+    });
 
-  // Initialize SpeechRecognition instance once (or when language changes)
-  // to avoid Garbage Collection / re-render teardown bugs.
+    return () => {
+      socket.off('receive_direct_message');
+      socket.disconnect();
+    };
+  }, [parentUser.id, assignedChildId]);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = false;
-      recognition.lang = language === 'ar' ? 'ar-SA' : 'en-US';
+      recognition.lang = language === 'ar' ? 'ar-EG' : 'en-US';
 
-      recognition.onstart = () => {
-        setIsListening(true);
-        setVoiceError('');
-      };
-
+      recognition.onstart = () => setIsListening(true);
       recognition.onresult = (event: any) => {
         const transcript = event.results[event.results.length - 1][0].transcript;
         setLogNotes(prev => prev ? `${prev} ${transcript}` : transcript);
         processVoiceInputNLP(transcript);
       };
-
-      recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
-        setVoiceError(event.error);
-        
-        // If it is a fatal blocker (like permissions, or language unsupported), stop retrying
-        if (event.error !== 'no-speech' && event.error !== 'audio-capture') {
-          shouldBeListeningRef.current = false;
-          setIsListening(false);
-        }
-      };
-
+      recognition.onerror = (event: any) => setVoiceError(event.error);
       recognition.onend = () => {
-        // Auto-restart if user did not explicitly click stop (e.g. silent timeout)
         if (shouldBeListeningRef.current) {
-          try {
-            recognition.start();
-          } catch (err) {
-            console.warn("Failed to auto-restart speech recognition:", err);
-            setIsListening(false);
-          }
+          try { recognition.start(); } catch { setIsListening(false); }
         } else {
           setIsListening(false);
         }
       };
-
       recognitionRef.current = recognition;
     }
-
     return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch (err) {
-          console.warn("Failed to abort speech recognition:", err);
-        }
-      }
+      if (recognitionRef.current) recognitionRef.current.abort();
     };
   }, [language]);
 
-  // Toggle voice logging using persistent SpeechRecognition instance
-  const toggleVoiceLogging = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+  const processVoiceInputNLP = (text: string) => {
+    const lower = text.toLowerCase();
+    if (/meltdown|tantrum|crisis|انهيار|نوبة/i.test(lower)) {
+      setLogMood('angry');
+    } else if (/happy|focused|calm|سعيد|مرتاح|هادئ/i.test(lower)) {
+      setLogMood('happy');
+    } else if (/sad|upset|حزين|يبكي/i.test(lower)) {
+      setLogMood('sad');
     }
-
-    const recognition = recognitionRef.current;
-    if (recognition) {
-      if (isListening) {
-        shouldBeListeningRef.current = false;
-        try {
-          recognition.stop();
-        } catch (err) {
-          console.warn("Failed to stop speech recognition:", err);
-        }
-        setIsListening(false);
-      } else {
-        shouldBeListeningRef.current = true;
-        setVoiceError('');
-        try {
-          recognition.start();
-        } catch (err) {
-          console.warn("Failed to start speech recognition:", err);
-          shouldBeListeningRef.current = false;
-          setIsListening(false);
-        }
-      }
-    } else {
-      // Toggle listening display for fallback/simulated click suggestions
-      setIsListening(!isListening);
+    const hourMatch = text.match(/\d+/);
+    if (hourMatch) {
+      const hours = Math.min(Math.max(parseInt(hourMatch[0], 10), 1), 24);
+      setLogSleep(hours.toString());
     }
   };
 
-  // Helper to simulate speech entry from the suggestions helper
-  const simulateSpeech = (text: string) => {
-    setLogNotes(prev => prev ? `${prev} ${text}` : text);
-    processVoiceInputNLP(text);
-    shouldBeListeningRef.current = false;
-    setVoiceError('');
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (_) {}
-    }
-    setIsListening(false);
-  };
-
-  // API Integrated Workspace States
-  const [activeChildId, setActiveChildId] = useState<string>('');
-  const [loadingPrediction, setLoadingPrediction] = useState<boolean>(false);
-  const [predictionData, setPredictionData] = useState<any>(null);
-  const [predictionError, setPredictionError] = useState<string>('');
-  const [nutritionPlan, setNutritionPlan] = useState<any>(null);
-  const [loadingNutrition, setLoadingNutrition] = useState<boolean>(false);
-  const [uploadError, setUploadError] = useState<string>('');
-  const [uploadSuccess, setUploadSuccess] = useState<string>('');
-
-  const child = parentUser.child!;
-
-  const [logs, setLogs] = useState<any[]>([
-    { date: '2026-06-22', mood: 'excellent', sleep: '9.0 hrs', meds: true, notes: 'Very focused in matching game, took metafolin successfully.' },
-    { date: '2026-06-21', mood: 'good', sleep: '8.5 hrs', meds: true, notes: 'Calm evening, positive social interactions.' },
-    { date: '2026-06-20', mood: 'neutral', sleep: '7.5 hrs', meds: true, notes: 'Slight restlessness before sleep, settled in 10 mins.' }
-  ]);
-
-  const loadLogs = async (childId: string) => {
-    try {
-      const logsRes = await getBehaviorLogs(childId);
-      if (logsRes.success && logsRes.data && logsRes.data.length > 0) {
-        const mapped = logsRes.data.map((l: any) => ({
-          date: l.date ? l.date.split('T')[0] : '',
-          // Kept 1-to-1 matching to let it directly read database values cleanly
-          mood: l.mood || 'neutral',
-          sleep: `${l.sleepHours || 0} hrs`,
-          meds: l.medication && l.medication[0] ? l.medication[0].taken : true,
-          notes: l.notes || ''
-        }));
-        setLogs(mapped);
-      }
-    } catch (err) {
-      console.error('Error fetching logs:', err);
-    }
-  };
-
-  const loadNutritionData = async (childId: string) => {
-    try {
-      setLoadingNutrition(true);
-      const res = await getNutritionPlans(childId);
-      if (res.success && res.data && res.data.length > 0) {
-        const approvedPlan = res.data.find((p: any) => p.approved === true) || res.data[0];
-        setNutritionPlan(approvedPlan);
-      }
-    } catch (err) {
-      console.error('Error fetching nutrition plan:', err);
-    } finally {
-      setLoadingNutrition(false);
-    }
-  };
-
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        setLoadingPrediction(true);
-        setPredictionError('');
-
-        const patientsRes = await getPatients();
-        const childId =
-          patientsRes?.data?.[0]?._id ||
-          patientsRes?.data?.[0]?.id ||
-          patientsRes?.[0]?._id ||
-          patientsRes?.[0]?.id || '';
-
-        if (!childId) {
-          setPredictionError('No child profile found. Add a child to unlock tracking nodes.');
-          return;
-        }
-
-        setActiveChildId(childId);
-        await loadLogs(childId);
-        await loadNutritionData(childId);
-
-        const predRes = await getAIPrediction(childId, language);
-        if (predRes?.data) {
-          setPredictionData(predRes.data);
-        }
-      } catch (err: any) {
-        setPredictionError('AI analysis array currently initializing. Re-syncing shortly.');
-      } finally {
-        setLoadingPrediction(false);
-      }
-    };
-
-    loadDashboardData();
-  }, [language]);
-
-  const handleAddLog = async (e: React.FormEvent) => {
+  const toggleVoiceLogging = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!activeChildId) return;
+    if (!recognitionRef.current) return;
+    if (isListening) {
+      shouldBeListeningRef.current = false;
+      recognitionRef.current.stop();
+    } else {
+      shouldBeListeningRef.current = true;
+      setVoiceError('');
+      try { recognitionRef.current.start(); } catch { }
+    }
+  };
 
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim() || !socketRef.current) return;
+
+    const payload = {
+      patientId: assignedChildId,
+      senderId: parentUser.id,
+      senderRole: 'parent',
+      receiverId: activePartnerId,
+      text: inputText.trim()
+    };
+
+    socketRef.current.emit('send_direct_message', payload);
+
+    const localOptimisticMessage = {
+      _id: Date.now().toString(),
+      patientId: assignedChildId,
+      sender: parentUser.id,
+      senderRole: 'parent',
+      receiver: activePartnerId,
+      text: inputText.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    setMessages(prev => {
+      const next = { ...prev };
+      next[activeChannel] = [...next[activeChannel], localOptimisticMessage];
+      return next;
+    });
+
+    setInputText('');
+  };
+
+  const handleAddLogSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
-      const sleepNum = Number(logSleep);
-      const logData = {
-        childId: activeChildId,
-        date: new Date(),
+      const payload = {
+        childId: assignedChildId,
         mood: logMood,
-        sleepHours: sleepNum,
-        sleepQuality: sleepNum >= 8 ? 'excellent' : sleepNum >= 6 ? 'good' : 'poor',
-        meltdownSeverity: 'none',
-        meltdowns: 0,
+        sleepHours: parseFloat(logSleep),
         medication: logMedications.map(m => ({ name: m.name, taken: m.taken, time: m.time })),
-        notes: logNotes || 'Parent logged daily behavioral stats.',
+        notes: logNotes || '',
+        date: new Date().toISOString()
       };
-
-      const res = await createBehaviorLog(logData);
+      const res = await createBehaviorLog(payload);
       if (res.success) {
         setLogSuccess(true);
         setLogNotes('');
-        await loadLogs(activeChildId);
-
-        setLoadingPrediction(true);
-        const predRes = await getAIPrediction(activeChildId, language);
-        if (predRes?.data) setPredictionData(predRes.data);
-        setLoadingPrediction(false);
-
-        setTimeout(() => setLogSuccess(false), 3000);
+        await loadEcosystemLogs();
+        await fetchAIAnalysisModel();
+        setTimeout(() => setLogSuccess(false), 3500);
       }
     } catch (err) {
-      console.error('Failed to save behavior log:', err);
+      console.error("Failed to commit telemetry indices:", err);
     }
   };
 
-  const chartData = [
-    { name: isRtl ? 'الأحد' : 'Sun', Score: 60, Accuracy: 70 },
-    { name: isRtl ? 'الإثنين' : 'Mon', Score: 75, Accuracy: 80 },
-    { name: isRtl ? 'الثلاثاء' : 'Tue', Score: 85, Accuracy: 85 },
-    { name: isRtl ? 'الأربعاء' : 'Wed', Score: 80, Accuracy: 90 },
-    { name: isRtl ? 'الخميس' : 'Thu', Score: 92, Accuracy: 95 }
-  ];
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'parent' | 'child') => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    try {
+      if (target === 'parent') {
+        const res = await updateProfileAvatar(file);
+        if (res.success) setParentAvatar(res.data.avatar);
+      } else {
+        const res = await updatePatientAvatar(assignedChildId, file);
+        if (res.success) setChildAvatar(res.data.avatar);
+      }
+    } catch (err) {
+      console.error("Cloudinary upload mutation aborted:", err);
+    }
+  };
+
+  const handleBirthCertificateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    try {
+      const res = await uploadPatientBirthCertificate(assignedChildId, file);
+      if (res.success) {
+        setBirthCertificateUrl(res.data.birthCertificateUrl);
+      }
+    } catch (err) {
+      console.error("Failed to stream regulatory credentials:", err);
+    }
+  };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans">
+    <div className={`flex min-h-screen bg-slate-50 font-sans ${isRtl ? 'flex-row-reverse text-right' : 'text-left'}`}>
 
-      {/* 1. COLLAPSIBLE SIDEBAR CONTAINER */}
-      <aside className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-slate-900 text-slate-300 flex flex-col justify-between p-4 transition-all duration-300 fixed h-full z-50`}>
+      {/* SIDEBAR */}
+      <aside className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-slate-900 text-slate-300 flex flex-col justify-between p-4 transition-all duration-300 fixed h-full z-50 ${isRtl ? 'right-0' : 'left-0'}`}>
         <div className="space-y-8">
-          <div className="flex items-center justify-between gap-2">
+          <div className={`flex items-center justify-between gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
             {!sidebarCollapsed && (
-              <div className="flex items-center space-x-2.5 animate-fade-in">
-                <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-black text-base shadow shadow-sky-500/35">A</div>
-                <span className="text-sm font-black text-white tracking-tight">AutiCare <span className="text-sky-400">Parent</span></span>
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-black text-base">P</div>
+                <span className="text-sm font-black text-white tracking-tight">AutiCare <span className="text-indigo-400">{isRtl ? 'العائلة' : 'Family'}</span></span>
               </div>
             )}
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 mx-auto cursor-pointer transition-colors">
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-400 mx-auto cursor-pointer transition-colors">
               {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           </div>
 
           <nav className="flex flex-col space-y-1.5">
-            <button onClick={() => setActiveTab('dashboard')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'dashboard' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+            <button onClick={() => setActiveTab('overview')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center ${activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl ? 'flex-row-reverse space-x-reverse' : ''}`}>
+              <User className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'ملف الطفل' : 'Child Profile'}</span>}
+            </button>
+            <button onClick={() => setActiveTab('logs')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center ${activeTab === 'logs' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl ? 'flex-row-reverse space-x-reverse' : ''}`}>
               <Activity className="w-4 h-4 flex-shrink-0" />
-              {!sidebarCollapsed && <span>Dashboard</span>}
+              {!sidebarCollapsed && <span>{isRtl ? 'التدوين اليومي' : 'Daily Tracking'}</span>}
             </button>
-            <button onClick={() => setActiveTab('progress')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'progress' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
-              <LineChart className="w-4 h-4 flex-shrink-0" />
-              {!sidebarCollapsed && <span>Child Progress</span>}
+            <button onClick={() => setActiveTab('nutrition')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center ${activeTab === 'nutrition' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl ? 'flex-row-reverse space-x-reverse' : ''}`}>
+              <Dna className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'الخطة الغذائية' : 'Nutrition Plan'}</span>}
             </button>
-            <button onClick={() => setActiveTab('nutrition')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'nutrition' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
-              <Utensils className="w-4 h-4 flex-shrink-0" />
-              {!sidebarCollapsed && <span>Nutrition Plan</span>}
+            <button onClick={() => setActiveTab('chat')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center ${activeTab === 'chat' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl ? 'flex-row-reverse space-x-reverse' : ''}`}>
+              <MessageSquare className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'التواصل الآمن' : 'Secure Chat'}</span>}
             </button>
-            <button onClick={() => setActiveTab('clinicians')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'clinicians' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
-              <Users className="w-4 h-4 flex-shrink-0" />
-              {!sidebarCollapsed && <span>Care Team</span>}
-            </button>
-            <button onClick={() => setActiveTab('logs')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'logs' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
-              <FileText className="w-4 h-4 flex-shrink-0" />
-              {!sidebarCollapsed && <span>Daily Logs</span>}
-            </button>
-            <button onClick={() => setActiveTab('settings')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'settings' ? 'bg-sky-500 text-white shadow shadow-sky-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+            <button onClick={() => setActiveTab('settings')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center ${activeTab === 'settings' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} ${isRtl ? 'flex-row-reverse space-x-reverse' : ''}`}>
               <Settings className="w-4 h-4 flex-shrink-0" />
-              {!sidebarCollapsed && <span>Profile & Settings</span>}
+              {!sidebarCollapsed && <span>{isRtl ? 'الإعدادات' : 'Settings'}</span>}
             </button>
           </nav>
         </div>
 
-        <div className="border-t border-slate-800 pt-4 space-y-4">
-          {!sidebarCollapsed && (
-            <div className="flex items-center space-x-3 pl-1 truncate">
-              {parentUser.avatar ? (
-                <img src={parentUser.avatar} alt={parentUser.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-slate-700" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-extrabold text-xs flex-shrink-0">{parentUser.name.charAt(0)}</div>
-              )}
-              <div className="truncate max-w-[140px]"><p className="text-xs font-extrabold text-white truncate">{parentUser.name}</p></div>
-            </div>
-          )}
-          <button onClick={onLogout} className="w-full py-2 bg-rose-500/10 hover:bg-rose-50 hover:text-white text-rose-400 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
-            <LogOut className="w-3.5 h-3.5" />
-            {!sidebarCollapsed && <span>LOGOUT</span>}
-          </button>
-        </div>
+        <button onClick={onLogout} className={`w-full py-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 font-black rounded-xl text-xs flex items-center justify-center gap-2 transition-all ${isRtl ? 'flex-row-reverse' : ''}`}>
+          <LogOut className="w-3.5 h-3.5" />
+          {!sidebarCollapsed && <span>{isRtl ? 'تسجيل الخروج' : 'LOGOUT'}</span>}
+        </button>
       </aside>
 
-      {/* 2. CONTENT CONTAINER HUB */}
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'pl-16' : 'pl-64'}`}>
-        <AppHeader title="Parent Portal" userName={parentUser.name} role="parent" language={language} />
+      {/* MAIN CONTENT */}
+      <main className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? (isRtl ? 'pr-16' : 'pl-16') : (isRtl ? 'pr-64' : 'pl-64')}`}>
+        <div className="p-6 md:p-8 space-y-6 select-none">
 
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto space-y-8 text-left select-none">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200/80 pb-6 gap-4">
+          {/* HEADER */}
+          <div className={`border-b pb-4 flex justify-between items-center ${isRtl ? 'flex-row-reverse' : ''}`}>
             <div>
-              <h2 className="text-2xl font-black text-slate-800">Welcome, {parentUser.name.split(' ')[0]}</h2>
-              <p className="text-xs text-slate-400 font-semibold mt-1">Track and support your child's tailored medical frameworks.</p>
+              <h2 className="text-xl font-black text-slate-800">{isRtl ? `مرحباً، عائلة ${parentUser.childName || ''}` : `Welcome, ${parentUser.childName || parentUser.name}`}</h2>
+              <p className="text-xs text-slate-400 font-semibold">{isRtl ? 'بوابة الرعاية السلوكية والغذائية' : 'Behavioral & Nutrition Care Portal'}</p>
             </div>
-            <div className="flex items-center space-x-3 bg-white border border-slate-200 rounded-2xl p-2 px-4 shadow-sm h-fit">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping mr-1" />
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Play Corner Synced</span>
+
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <button onClick={() => setNotifOpen(!notifOpen)} className="p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-indigo-600 transition-all cursor-pointer relative">
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full animate-bounce">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className={`absolute mt-2 w-80 bg-white border border-slate-100 rounded-2xl shadow-xl p-4 z-50 space-y-3 ${isRtl ? 'left-0' : 'right-0'}`}>
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <span className="text-xs font-black text-slate-800">{isRtl ? 'الإشعارات' : 'Notifications'}</span>
+                      <button onClick={() => setNotifications(prev => prev.map((n: any) => ({ ...n, read: true })))} className="text-[10px] text-indigo-600 font-bold hover:underline">
+                        {isRtl ? 'تحديد الكل كمقروء' : 'Mark all read'}
+                      </button>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-2 scrollbar-none">
+                      {notifications.length === 0 ? (
+                        <p className="text-xs text-slate-400 text-center py-4">{isRtl ? 'لا توجد إشعارات' : 'No notifications'}</p>
+                      ) : (
+                        notifications.map((n: any) => (
+                          <div key={n.id} className={`p-2.5 rounded-xl text-xs border transition-colors ${n.read ? 'bg-slate-50/50 border-slate-100' : 'bg-indigo-50/30 border-indigo-100'}`}>
+                            <div className="flex items-center gap-1.5 font-bold text-slate-800 mb-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                              {n.title}
+                            </div>
+                            <p className="text-slate-500 text-[11px] font-medium leading-relaxed">{n.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 flex items-center gap-1.5 text-xs font-bold">
+                <ShieldCheck className="w-4 h-4" />
+                <span className="text-[10px] tracking-wider uppercase font-mono">{isRtl ? 'محمي' : 'Protected'}</span>
+              </div>
             </div>
           </div>
 
-          {/* DASHBOARD TAB WORKSPACE */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 rounded-3xl p-6 text-white relative shadow-lg">
-                <div className="flex flex-col sm:flex-row items-center sm:space-x-5 gap-4 relative z-10">
-                  <div className="relative w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-3xl font-black text-sky-600 shadow overflow-hidden group">
-                    {child.avatar ? (
-                      <img src={child.avatar} alt={child.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>👦</span>
-                    )}
-                    <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
-                      <Plus className="w-5 h-5 text-white" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          if (e.target.files?.[0]) {
-                            try {
-                              setLoading(true);
-                              setUploadError('');
-                              setUploadSuccess('');
-                              const res = await updatePatientAvatar(child.id || activeChildId, e.target.files[0]);
-                              if (res.success) {
-                                child.avatar = res.data.avatar;
-                                setUploadSuccess('Child profile photo updated successfully.');
-                                setDummyState(d => d + 1);
-                              }
-                            } catch (err: any) {
-                              console.error(err);
-                              setUploadError(err.message || 'Failed to upload child profile photo.');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }
-                        }}
-                      />
-                    </label>
+          {/* TAB: OVERVIEW */}
+          {activeTab === 'overview' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs md:col-span-2 space-y-4">
+                <h3 className={`text-sm font-black text-slate-800 flex items-center gap-2 border-b pb-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                  <Activity className="w-4 h-4 text-indigo-500" />
+                  <span>{isRtl ? 'الملف التشخيصي للطفل' : 'Child Diagnostic Profile'}</span>
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'الاسم' : 'Child Name'}</span>
+                    <span className="text-sm font-black text-slate-800 block mt-1">{parentUser.childName || ''}</span>
                   </div>
-                  <div className="space-y-1 text-center sm:text-left">
-                    <span className="bg-white/20 px-3 py-1 rounded-full text-[9px] font-extrabold uppercase">{child.level}</span>
-                    <h3 className="text-xl font-black">{child.name}</h3>
-                    <p className="text-xs text-sky-100 font-semibold">Age: {child.age} Years • Account profile code: <span className="font-mono bg-white/15 px-2 py-0.5 rounded">{child.username}</span></p>
+                  <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'مستوى التوحد' : 'ASD Level'}</span>
+                    <span className="mt-1 bg-indigo-50 text-indigo-700 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase inline-block">
+                      {parentUser.asdLevel || '-'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 border-b pb-2 flex items-center gap-2"><Trophy className="w-4 h-4 text-sky-500" />Cognitive Progress Matrix</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-1"><div className="flex justify-between text-xs font-bold text-slate-700"><span>Memory Match Game</span><span>85%</span></div><div className="w-full bg-slate-100 h-2 rounded-full"><div className="bg-sky-500 h-2 rounded-full" style={{ width: '85%' }} /></div></div>
-                    <div className="space-y-1"><div className="flex justify-between text-xs font-bold text-slate-700"><span>Emotions Board Deck</span><span>90%</span></div><div className="w-full bg-slate-100 h-2 rounded-full"><div className="bg-emerald-500 h-2 rounded-full" style={{ width: '90%' }} /></div></div>
+              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-4">
+                <h3 className={`text-sm font-black text-slate-800 flex items-center gap-2 border-b pb-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  <span>{isRtl ? 'فريق الرعاية' : 'Care Team'}</span>
+                </h3>
+                <div className="space-y-3">
+                  <div className={`p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3 ${isRtl ? 'flex-row-reverse text-right' : ''}`}>
+                    <span className="text-xl">👨‍⚕️</span>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">{doctorName || (isRtl ? 'غير معين' : 'Not assigned')}</p>
+                      <p className="text-[9px] text-blue-500 font-bold">{isRtl ? 'الطبيب المشرف' : 'Supervising Physician'}</p>
+                    </div>
+                  </div>
+                  <div className={`p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3 ${isRtl ? 'flex-row-reverse text-right' : ''}`}>
+                    <span className="text-xl">👩‍🏫</span>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">{therapistName || (isRtl ? 'غير معين' : 'Not assigned')}</p>
+                      <p className="text-[9px] text-purple-500 font-bold">{isRtl ? 'أخصيي السلوك' : 'ABA Specialist'}</p>
+                    </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
 
-                <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 border-b pb-2 flex items-center gap-2"><Activity className="w-4 h-4 text-sky-500" />Quick Daily Log submission</h4>
-                  {logSuccess && <div className="p-2 bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold rounded-xl">Logs successfully registered into cloud pools!</div>}
-                  <form onSubmit={handleAddLog} className="space-y-3">
-                    <div className="space-y-0.5">
-                      <label className="text-[9px] font-black uppercase text-slate-400 block">
-                        {isRtl ? 'المزاج العام' : 'Overall Mood'}
-                      </label>
-                      <select
-                        value={logMood}
-                        onChange={(e: any) => setLogMood(e.target.value)}
-                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                      >
-                        <option value="very_happy">{isRtl ? 'سعيد جداً' : 'Very Happy'}</option>
-                        <option value="happy">{isRtl ? 'سعيد' : 'Happy'}</option>
-                        <option value="neutral">{isRtl ? 'حيادي' : 'Neutral'}</option>
-                        <option value="sad">{isRtl ? 'حزين' : 'Sad'}</option>
-                        <option value="very_sad">{isRtl ? 'حزين جداً' : 'Very Sad'}</option>
-                        <option value="anxious">{isRtl ? 'قلق' : 'Anxious'}</option>
-                        <option value="angry">{isRtl ? 'غاضب / نوبة / مضطرب' : 'Angry / Meltdown / Distressed'}</option>
-                      </select>
+          {/* TAB: DAILY LOGS */}
+          {activeTab === 'logs' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+              <div className="lg:col-span-1 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-4">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h4 className="text-xs font-black uppercase text-slate-800 flex items-center gap-1">
+                    <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+                    {isRtl ? 'تسجيل يومي' : 'Daily Log'}
+                  </h4>
+                  <button onClick={toggleVoiceLogging} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase transition-all shadow-xs border cursor-pointer ${isListening ? 'bg-rose-500 text-white border-rose-600 animate-pulse' : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white'}`}>
+                    <Mic className="w-3 h-3" />
+                    <span>{isListening ? (isRtl ? 'جاري السماع...' : 'Listening...') : (isRtl ? 'إدخال صوتي' : 'Voice Log')}</span>
+                  </button>
+                </div>
+
+                {voiceError && <div className="text-[9px] text-rose-500 font-bold">⚠️ {voiceError}</div>}
+                {logSuccess && <div className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2.5 py-0.5 rounded-full uppercase animate-fade-in">{isRtl ? 'تم الحفظ!' : 'Saved!'}</div>}
+
+                <form onSubmit={handleAddLogSubmit} className="space-y-4">
+                  <div className="space-y-1 text-left">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">{isRtl ? 'المزاج العام' : 'Overall Mood'}</label>
+                    <select value={logMood} onChange={(e: any) => setLogMood(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none">
+                      <option value="very_happy">😄 {isRtl ? 'سعيد جداً' : 'Very Happy'}</option>
+                      <option value="happy">😊 {isRtl ? 'سعيد' : 'Happy'}</option>
+                      <option value="neutral">😐 {isRtl ? 'حيادي' : 'Neutral'}</option>
+                      <option value="sad">😢 {isRtl ? 'حزين' : 'Sad'}</option>
+                      <option value="very_sad">😭 {isRtl ? 'حزين جداً' : 'Very Sad'}</option>
+                      <option value="anxious">😰 {isRtl ? 'قلق' : 'Anxious'}</option>
+                      <option value="angry">😡 {isRtl ? 'غاضب / نوبة' : 'Angry / Meltdown'}</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
+                      <span>{isRtl ? 'النوم' : 'Sleep'}</span>
+                      <span className="text-indigo-600 font-mono">{logSleep}h</span>
                     </div>
-                    {/* ── Sleep Duration Slider ── */}
-                    <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
-                      <div className="flex justify-between items-center">
-                        <label className="text-[9px] font-black uppercase text-slate-400">
-                          {isRtl ? 'ساعات النوم' : 'Sleep Duration'}
-                        </label>
-                        <span className="text-xs font-black" style={{ color: sleepColor(Number(logSleep)) }}>
-                          {logSleep}h — {sleepLabel(Number(logSleep))}
-                        </span>
-                      </div>
-                      <input
-                        id="sleep-slider"
-                        type="range"
-                        min="0.5"
-                        max="14"
-                        step="0.5"
-                        value={logSleep}
-                        onChange={(e) => setLogSleep(e.target.value)}
-                        style={{
-                          accentColor: sleepColor(Number(logSleep)),
-                          width: '100%',
-                          cursor: 'pointer',
-                        }}
-                      />
-                      <div className="flex justify-between text-[9px] text-slate-400 font-semibold">
-                        <span>0.5h</span><span>4h</span><span>7h</span><span>10h</span><span>14h</span>
-                      </div>
-                    </div>
-                    <div className="space-y-0.5 relative">
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-[9px] font-black uppercase text-slate-400 block">
-                          {isRtl ? 'الملاحظات' : 'Observations / Notes'}
-                        </label>
-                        {/* Voice Logger Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => toggleVoiceLogging(e)}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase transition-all shadow-sm border cursor-pointer ${
-                            isListening
-                              ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
-                              : 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-500 hover:text-white'
-                          }`}
-                        >
-                          <Mic className="w-3 h-3" />
-                          <span>{isListening ? (isRtl ? 'جاري الاستماع...' : 'Listening...') : (isRtl ? 'إدخال صوتي' : 'Voice Log')}</span>
+                    <input type="range" min="2" max="14" step="0.5" value={logSleep} onChange={(e) => setLogSleep(e.target.value)} className="w-full accent-indigo-600 cursor-pointer" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block">{isRtl ? 'الأدوية' : 'Medications'}</label>
+                    {logMedications.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">{isRtl ? 'لا توجد أدوية مسجلة' : 'No medications recorded'}</p>
+                    ) : (
+                      logMedications.map((m, idx) => (
+                        <button key={idx} type="button" onClick={() => setLogMedications(prev => prev.map((med, i) => i === idx ? { ...med, taken: !med.taken } : med))} className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${m.taken ? 'bg-emerald-50/60 border-emerald-100 text-emerald-700' : 'bg-rose-50/60 border-rose-100 text-rose-700'}`}>
+                          <span className="truncate">{m.name}</span>
+                          <span className="text-[10px] tracking-wider uppercase font-mono font-black">{m.taken ? '✓' : '×'}</span>
                         </button>
-                      </div>
-                      {voiceError && (
-                        <div className="text-[9px] text-rose-500 font-bold block mb-1">
-                          ⚠️ {voiceError === 'not-allowed' ? 'Mic permission blocked' : `Voice log stopped: ${voiceError}`}
-                        </div>
-                      )}
-                      <div className="relative">
-                        <textarea
-                          value={logNotes}
-                          onChange={(e) => setLogNotes(e.target.value)}
-                          placeholder={isRtl ? "أدخل الملاحظات أو اضغط على الإدخال الصوتي..." : "Enter notes or click Voice Log..."}
-                          className="w-full p-2 pr-8 h-14 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                          required
-                        />
-                      </div>
-                      
-                      {/* Listening demo suggestions helper */}
-                      {(isListening || voiceError === 'network' || voiceError === 'not-allowed') && (
-                        <div className="absolute z-20 bottom-full left-0 right-0 mb-1 p-2.5 bg-indigo-50/95 border border-indigo-200 rounded-xl shadow-lg text-[10px] text-indigo-700 font-semibold animate-fade-in flex flex-col gap-1.5">
-                          <p className="border-b border-indigo-100 pb-1">
-                            {isListening
-                              ? '🎤 Speak now, or click a demo utterance below to parse:'
-                              : '⚠️ Speech Recognition offline. Click below to simulate voice logs:'}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => simulateSpeech("Slept 6 hours but had a major meltdown in the evening")}
-                            className="text-left hover:underline text-[9px] text-slate-500 block truncate cursor-pointer font-mono"
-                          >
-                            "Slept 6 hours but had a major meltdown in the evening"
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => simulateSpeech("He slept 9 hours and had no tantrum today")}
-                            className="text-left hover:underline text-[9px] text-slate-500 block truncate cursor-pointer font-mono"
-                          >
-                            "He slept 9 hours and had no tantrum today"
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {/* ── Medication Checklist ── */}
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase text-slate-400 block">
-                        {isRtl ? 'الأدوية والمكملات الغذائية' : 'Medications & Supplements'}
-                      </label>
-                      <div className="space-y-1.5">
-                        {logMedications.map((med, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => toggleMedication(i)}
-                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                              med.taken
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                                : 'bg-rose-50 border-rose-200 text-rose-600'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[10px] font-black flex-shrink-0 ${
-                                med.taken ? 'bg-emerald-500' : 'bg-rose-400'
-                              }`}>
-                                {med.taken ? '✓' : '✗'}
+                      ))
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block">{isRtl ? 'الملاحظات' : 'Notes'}</label>
+                    <textarea value={logNotes} onChange={(e) => setLogNotes(e.target.value)} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium resize-none h-16 outline-none" placeholder={isRtl ? 'اكتب ملاحظاتك...' : 'Enter observations...'} />
+                  </div>
+
+                  <button type="submit" className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-colors cursor-pointer">
+                    {isRtl ? 'حفظ' : 'Save Log'}
+                  </button>
+                </form>
+              </div>
+
+              <div className="lg:col-span-2 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-4">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h4 className="text-xs font-black uppercase text-slate-800">{isRtl ? 'السجلات السابقة' : 'Previous Logs'}</h4>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left direction-ltr">
+                    <thead>
+                      <tr className="border-b text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                        <th className="pb-2">{isRtl ? 'التاريخ' : 'Date'}</th>
+                        <th className="pb-2">{isRtl ? 'المزاج' : 'Mood'}</th>
+                        <th className="pb-2">{isRtl ? 'النوم' : 'Sleep'}</th>
+                        <th className="pb-2">{isRtl ? 'الملاحظات' : 'Notes'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 font-medium text-slate-600">
+                      {logs.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-400 italic font-bold">
+                            {isRtl ? 'لا توجد سجلات بعد.' : 'No logs yet.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        logs.map((l, i) => (
+                          <tr key={l._id || i}>
+                            <td className="py-3 font-mono font-bold text-slate-800">{l.date ? new Date(l.date).toLocaleDateString() : ''}</td>
+                            <td>
+                              <span className="inline-block px-2 py-0.5 text-[9px] font-black rounded-full uppercase bg-indigo-50 text-indigo-700">
+                                {l.mood}
                               </span>
-                              <div className="text-left">
-                                <p className="font-extrabold leading-tight">{med.name}</p>
-                                <p className="text-[9px] font-semibold opacity-70">{med.time}</p>
-                              </div>
+                            </td>
+                            <td className="font-mono">{l.sleepHours}h</td>
+                            <td className="max-w-xs truncate text-slate-400" title={l.notes}>{l.notes}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: NUTRITION */}
+          {activeTab === 'nutrition' && (
+            <div className="space-y-6 animate-fade-in">
+              {loading ? (
+                <div className="p-8 text-center text-xs text-slate-400 font-bold">{isRtl ? 'جار التحميل...' : 'Loading...'}</div>
+              ) : nutritionPlan ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-6">
+                    <div className={`bg-slate-950 text-slate-200 p-4 rounded-2xl space-y-2 border border-slate-800 ${isRtl ? 'text-right' : 'text-left'}`}>
+                      <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5" /> {isRtl ? 'الخطة الغذائية' : 'AI Nutrition Plan'}
+                      </span>
+                      <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap">{nutritionPlan.aiRecommendation?.nutritionPlan}</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-wider block">{isRtl ? 'المكملات الغذائية' : 'Supplements'}</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {nutritionPlan.aiRecommendation?.supplements?.map((s: any, i: number) => (
+                          <div key={i} className={`p-3 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-between ${isRtl ? 'text-right' : 'text-left'}`}>
+                            <div className="flex justify-between items-center w-full">
+                              <span className="font-bold text-xs text-slate-800">{s.name}</span>
+                              <span className="bg-indigo-50 text-indigo-700 font-black text-[9px] px-2 py-0.5 rounded uppercase">{s.dosage || s.dose}</span>
                             </div>
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                              med.taken ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'
-                            }`}>
-                              {med.taken ? (isRtl ? 'أُخذ' : 'Taken') : (isRtl ? 'لم يُؤخذ' : 'Skipped')}
-                            </span>
-                          </button>
+                            {s.notes && <p className="text-[10px] text-slate-400 font-medium italic mt-1">{s.notes}</p>}
+                          </div>
                         ))}
                       </div>
                     </div>
-
-                    <button type="submit" className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white font-extrabold rounded-lg text-xs uppercase tracking-wider transition-all cursor-pointer">Save Log Profile</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* CHILD COGNITIVE PROGRESS CHART VIEW TAB */}
-          {activeTab === 'progress' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
-                <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b pb-2">Cognitive Growth Analytics Timeline</h4>
-                <div className="h-64 w-full -ml-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ReLineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#94a3b8" />
-                      <YAxis tick={{ fontSize: 9 }} stroke="#94a3b8" domain={[0, 100]} />
-                      <Tooltip contentStyle={{ fontSize: 10, borderRadius: 12 }} />
-                      <Line type="monotone" dataKey="Score" stroke="#0ea5e9" strokeWidth={3} dot={{ r: 4 }} />
-                      <Line type="monotone" dataKey="Accuracy" stroke="#10b981" strokeWidth={2.5} strokeDasharray="5 5" />
-                    </ReLineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* LIVE AI PREDICTION WINDOW CORE COMPONENT */}
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b pb-2 flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-sky-500" />
-                  <span>Real-time AI Behavioral Analysis</span>
-                </h4>
-                <AnimatePresence mode="wait">
-                  {loadingPrediction ? (
-                    <div className="w-full p-5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl animate-shimmer h-24" />
-                  ) : predictionError ? (
-                    <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100"><AlertCircle className="w-5 h-5 text-amber-500" /><span className="text-xs font-bold text-amber-700">{predictionError}</span></div>
-                  ) : predictionData ? (
-                    <div className={`relative rounded-2xl border p-5 ${predictionData.riskScore > 50 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">7-Day Crisis Risk Threshold Index</p>
-                      <p className={`text-3xl font-black font-mono ${predictionData.riskScore > 50 ? 'text-rose-500' : 'text-emerald-500'}`}>{predictionData.riskScore}%</p>
-                      <p className="text-xs font-semibold text-slate-600 mt-2 leading-relaxed">{predictionData.message}</p>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-slate-50 text-slate-400 text-xs rounded-xl border border-dashed border-slate-200">Complete more daily behavior logs to calibrate your local AI predictive telemetry curves.</div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          )}
-
-          {/* GENOMIC NUTRITION PLAN SYSTEM TAB VIEW */}
-          {activeTab === 'nutrition' && (
-            <div className="space-y-6 animate-fade-in">
-              {loadingNutrition ? (
-                <div className="space-y-4">
-                  <div className="h-12 w-full animate-shimmer rounded-2xl" />
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="h-48 w-full animate-shimmer rounded-3xl" />
-                    <div className="h-48 w-full animate-shimmer rounded-3xl" />
-                    <div className="h-48 w-full animate-shimmer rounded-3xl" />
-                  </div>
-                </div>
-              ) : nutritionPlan ? (
-                <div className="space-y-6">
-                  <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                    <div className="flex items-center space-x-2"><ShieldCheck className="w-5 h-5 text-emerald-500" /><span className="text-xs font-bold text-emerald-800">Approved Medical Framework signed by: <span className="underline font-black">{nutritionPlan.approvedBy?.name || 'Assigned Specialist'}</span></span></div>
-                    <span className="text-[10px] font-mono font-black uppercase bg-white px-2 py-0.5 rounded border border-emerald-200 text-emerald-600 w-fit">STATUS: COMPLIANT</span>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Panel 1: Supplements */}
-                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 border-b pb-2 flex items-center gap-1.5"><Pill className="w-4 h-4 text-sky-500" /><span>Supplement Schedule Protocol</span></h4>
-                      <div className="space-y-2">
-                        {nutritionPlan.aiRecommendation?.supplements?.map((sup: any, i: number) => (
-                          <div key={i} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
-                            <p className="font-black text-slate-800">{sup.name}</p>
-                            <p className="text-[11px] text-brand-600 font-bold mt-0.5">{sup.dosage} — {sup.frequency}</p>
-                          </div>
-                        )) || <p className="text-xs text-slate-400 italic">No vitamins specified.</p>}
-                      </div>
+                  <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-6">
+                    <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
+                      <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block">{isRtl ? 'الأطعمة الممنوعة' : 'Restricted Foods'}</span>
+                      <ul className={`list-disc list-inside text-xs text-slate-600 font-medium space-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
+                        {nutritionPlan.aiRecommendation?.foodRestrictions?.map((item: any, idx: number) => (
+                          <li key={idx}>{typeof item === 'string' ? item : String(item.name || Object.values(item)[0])}</li>
+                        )) || <li className="italic text-slate-400">{isRtl ? 'لا توجد' : 'None listed'}</li>}
+                      </ul>
                     </div>
 
-                    {/* Panel 2: Restrictions */}
-                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-rose-800 border-b pb-2 flex items-center gap-1.5"><Ban className="w-4 h-4 text-rose-500" /><span>Dietary Restrictions</span></h4>
-                      <div className="space-y-2">
-                        {nutritionPlan.aiRecommendation?.foodRestrictions?.map((res: string, i: number) => (
-                          <div key={i} className="flex items-center space-x-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-xs font-bold text-rose-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /><span>{res}</span>
-                          </div>
-                        )) || <p className="text-xs text-slate-400 italic">No standard restrictions offline.</p>}
-                      </div>
-                    </div>
-
-                    {/* Panel 3: Menu Plan */}
-                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-emerald-800 border-b pb-2 flex items-center gap-1.5"><Utensils className="w-4 h-4 text-emerald-500" /><span>Recommended Meal Framework</span></h4>
-                      <div className="space-y-3">
-                        {nutritionPlan.aiRecommendation?.mealSuggestions?.map((meal: any, i: number) => (
-                          <div key={i} className="border rounded-xl p-3 bg-slate-50/40 text-xs">
-                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 w-fit block mb-1.5">{meal.mealType}</span>
-                            <ul className="space-y-1 list-disc list-inside text-slate-600 font-medium">
-                              {meal.suggestions?.map((sug: string, k: number) => <li key={k}>{sug}</li>)}
-                            </ul>
-                          </div>
-                        )) || <p className="text-xs text-slate-400 italic">No alternative menus compiled.</p>}
-                      </div>
+                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block flex items-center gap-1">
+                        <Stethoscope className="w-3.5 h-3.5" /> {isRtl ? 'ملاحظات الطبيب' : 'Doctor Notes'}
+                      </span>
+                      <p className="text-xs text-slate-700 font-semibold leading-relaxed italic">{nutritionPlan.doctorNotes || '-'}</p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="p-12 border border-dashed rounded-3xl text-center text-slate-400 text-xs bg-white">No approved genetics nutrition plan is online yet. Complete base tracking configurations.</div>
+                <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center text-xs text-slate-400 font-medium">
+                  {isRtl ? 'لا توجد خطة غذائية بعد.' : 'No nutrition plan available.'}
+                </div>
               )}
             </div>
           )}
 
-          {/* CLINICIANS CARE TEAM TAB VIEW */}
-          {activeTab === 'clinicians' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-sky-50 border flex items-center justify-center text-2xl">🩺</div>
-                  <div>
-                    <span className="inline-flex bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full">Active Provider</span>
-                    <h4 className="text-sm font-black text-slate-800 mt-1">Dr. Sarah Connor</h4>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Child Psychologist & Advisor</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-sky-50 border flex items-center justify-center text-2xl">🧠</div>
-                  <div>
-                    <span className="inline-flex bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full">Active Provider</span>
-                    <h4 className="text-sm font-black text-slate-800 mt-1">Therapist Tom Smith</h4>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Clinical Behavior Analyst</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ARCHIVE RECORDS DAILY LOGS VIEW TAB */}
-          {activeTab === 'logs' && (
-            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden animate-fade-in">
-              <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 font-mono border-b pb-2 mb-4">Daily Observational Log Archives</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead>
-                    <tr className="border-b text-[10px] font-black text-slate-400 uppercase tracking-wider"><th className="pb-3">Date</th><th className="pb-3">Mood</th><th className="pb-3">Sleep</th><th className="pb-3">Meds</th><th className="pb-3">Observations</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 font-medium text-slate-600">
-                    {logs.map((log, index) => (
-                      <tr key={index}>
-                        <td className="py-4 font-mono font-bold text-slate-800">{log.date}</td>
-                        <td>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${log.mood === 'very_happy' ? 'bg-emerald-100 text-emerald-700' :
-                            log.mood === 'happy' ? 'bg-emerald-50 text-emerald-600' :
-                              log.mood === 'neutral' ? 'bg-slate-100 text-slate-600' :
-                                log.mood === 'anxious' ? 'bg-amber-50 text-amber-600' :
-                                  'bg-rose-50 text-rose-600' // Falls back to red styling for bad days (sad, very_sad, angry)
-                            }`}>
-                            {log.mood.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="font-bold">{log.sleep}</td>
-                        <td className="font-black text-emerald-500">{log.meds ? '✓' : '×'}</td>
-                        <td className="max-w-xs truncate text-slate-400" title={log.notes}>{log.notes}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+          {/* TAB: CHAT */}
+          {activeTab === 'chat' && (
+            <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-xs overflow-hidden animate-fade-in text-left">
+              <div className={`bg-gradient-to-r from-indigo-600 to-blue-600 p-4 text-white flex justify-between items-center ${isRtl ? 'flex-row-reverse' : ''}`}>
                 <div>
-                  <h3 className="text-lg font-black text-slate-800">Profile & Settings</h3>
-                  <p className="text-xs text-slate-400 font-semibold">Manage your profile image and verify child details.</p>
+                  <h3 className="font-bold text-sm flex items-center gap-2">
+                    💬 {isRtl ? 'التواصل الآمن' : 'Secure Communication'}
+                  </h3>
+                  <p className="text-[10px] text-blue-100 font-medium">{isRtl ? 'قناة مشفرة' : 'Encrypted channel'}</p>
                 </div>
-
-                {uploadError && (
-                  <div className="flex items-center space-x-3 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-xs font-bold text-rose-700 animate-fade-in">
-                    <AlertCircle className="w-5 h-5 text-rose-500 flex-shrink-0" />
-                    <span>{uploadError}</span>
-                  </div>
+                {activePartnerId && (
+                  <span className="text-[10px] bg-white/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono font-bold">
+                    {isRtl ? 'متصل' : 'Live'}
+                  </span>
                 )}
-                {uploadSuccess && (
-                  <div className="flex items-center space-x-3 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-700 animate-fade-in">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                    <span>{uploadSuccess}</span>
-                  </div>
-                )}
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Parent Profile Card */}
-                  <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Parent Profile</h4>
-                    <div className="flex items-center space-x-4">
-                      <div className="relative group w-20 h-20 flex-shrink-0">
-                        {parentUser.avatar ? (
-                          <img
-                            src={parentUser.avatar}
-                            alt={parentUser.name}
-                            className="w-20 h-20 rounded-2xl object-cover border border-slate-200"
-                          />
-                        ) : (
-                          <div className="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center text-3xl font-black text-sky-600 border border-slate-100">
-                            {parentUser.name.charAt(0)}
+              <div className={`grid grid-cols-1 md:grid-cols-4 h-96 ${isRtl ? 'md:grid-flow-col' : ''}`}>
+                <div className={`border-r border-slate-100 dark:border-slate-700 bg-slate-50/50 p-2 flex md:flex-col gap-1.5 ${isRtl ? 'border-r-0 border-l' : ''}`}>
+                  {!doctorUserId && !therapistUserId ? (
+                    <p className="text-xs text-slate-400 p-2 text-center">{isRtl ? 'لا يوجد متخصصون بعد' : 'No specialists assigned yet'}</p>
+                  ) : (
+                    <>
+                      {doctorUserId && (
+                        <button type="button" onClick={() => setActiveChannel('doctor')} className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : ''} ${activeChannel === 'doctor' ? 'bg-white dark:bg-slate-700 shadow-xs border border-slate-100 dark:border-slate-600 font-black text-indigo-600' : 'opacity-60 hover:opacity-100'}`}>
+                          <span className="text-base">👨‍⚕️</span>
+                          <div className="text-[11px]">
+                            <p className="text-slate-800 dark:text-slate-200">{doctorName || (isRtl ? 'الطبيب' : 'Doctor')}</p>
+                            <p className="text-[9px] text-blue-500 font-bold">{isRtl ? 'الطبيب المشرف' : 'Physician'}</p>
                           </div>
-                        )}
-                        <label className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
-                          <Plus className="w-6 h-6 text-white" />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={async (e) => {
-                              if (e.target.files?.[0]) {
-                                try {
-                                  setLoading(true);
-                                  setUploadError('');
-                                  setUploadSuccess('');
-                                  const res = await updateProfileAvatar(e.target.files[0]);
-                                  if (res.success) {
-                                    parentUser.avatar = res.data.avatar;
-                                    setUploadSuccess('Parent profile photo updated successfully.');
-                                    setDummyState(d => d + 1);
-                                  }
-                                } catch (err: any) {
-                                  console.error(err);
-                                  setUploadError(err.message || 'Failed to upload profile photo.');
-                                } finally {
-                                  setLoading(false);
-                                }
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-slate-700">{parentUser.name}</p>
-                        <p className="text-xs text-slate-400 font-medium">{parentUser.email}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Child Profile Card */}
-                  <div className="border border-slate-100 rounded-2xl p-6 space-y-4 relative bg-slate-50/50">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Child Profile</h4>
-                    <div className="flex items-center space-x-4">
-                      <div className="relative group w-20 h-20 flex-shrink-0">
-                        {child.avatar ? (
-                          <img
-                            src={child.avatar}
-                            alt={child.name}
-                            className="w-20 h-20 rounded-2xl object-cover border border-slate-200"
-                          />
-                        ) : (
-                          <div className="w-20 h-20 rounded-2xl bg-sky-50 flex items-center justify-center text-3xl font-black text-sky-600 border border-slate-100">
-                            👦
-                          </div>
-                        )}
-                        <label className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
-                          <Plus className="w-6 h-6 text-white" />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={async (e) => {
-                              if (e.target.files?.[0]) {
-                                try {
-                                  setLoading(true);
-                                  setUploadError('');
-                                  setUploadSuccess('');
-                                  const res = await updatePatientAvatar(child.id || activeChildId, e.target.files[0]);
-                                  if (res.success) {
-                                    child.avatar = res.data.avatar;
-                                    setUploadSuccess('Child profile photo updated successfully.');
-                                    setDummyState(d => d + 1);
-                                  }
-                                } catch (err: any) {
-                                  console.error(err);
-                                  setUploadError(err.message || 'Failed to upload child profile photo.');
-                                } finally {
-                                  setLoading(false);
-                                }
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-slate-700">{child.name}</p>
-                        <p className="text-xs text-slate-400 font-medium">Age: {child.calculatedAge || child.age} Years</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Secure Birth Certificate Ingestion */}
-                <div className="border border-slate-100 rounded-2xl p-6 space-y-4 bg-slate-50/50">
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 font-mono">Birth Certificate Scanning</h4>
-                    <p className="text-[11px] text-slate-400 font-medium mt-1">Upload an official document to secure and verify the patient registry profile.</p>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    {child.birthCertificateUrl ? (
-                      <div className="flex items-center space-x-2 bg-emerald-50 text-emerald-700 p-3 rounded-xl border border-emerald-100 text-xs font-bold w-full">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                        <div className="truncate">
-                          <p>Document Verified & Secured</p>
-                          <a href={child.birthCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] underline text-emerald-600 truncate hover:text-emerald-800">
-                            View Birth Certificate
-                          </a>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="w-full">
-                        <input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          id="bc-upload-input"
-                          className="hidden"
-                          onChange={async (e) => {
-                            if (e.target.files?.[0]) {
-                              try {
-                                setLoading(true);
-                                setUploadError('');
-                                setUploadSuccess('');
-                                const res = await uploadPatientBirthCertificate(child.id || activeChildId, e.target.files[0]);
-                                if (res.success) {
-                                  child.birthCertificateUrl = res.data.birthCertificateUrl;
-                                  setUploadSuccess('Birth certificate uploaded successfully.');
-                                  setDummyState(d => d + 1);
-                                }
-                              } catch (err: any) {
-                                console.error(err);
-                                setUploadError(err.message || 'Failed to upload birth certificate.');
-                              } finally {
-                                setLoading(false);
-                              }
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('bc-upload-input')?.click()}
-                          className="w-full py-3 bg-white border border-slate-200 border-dashed rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <Upload className="w-4 h-4 text-slate-400" />
-                          Upload Verification Document (PDF/Image)
                         </button>
-                      </div>
+                      )}
+                      {therapistUserId && (
+                        <button type="button" onClick={() => setActiveChannel('therapist')} className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : ''} ${activeChannel === 'therapist' ? 'bg-white dark:bg-slate-700 shadow-xs border border-slate-100 dark:border-slate-600 font-black text-purple-600' : 'opacity-60 hover:opacity-100'}`}>
+                          <span className="text-base">👩‍🏫</span>
+                          <div className="text-[11px]">
+                            <p className="text-slate-800 dark:text-slate-200">{therapistName || (isRtl ? 'المعالج' : 'Therapist')}</p>
+                            <p className="text-[9px] text-purple-500 font-bold">{isRtl ? 'أخصيي السلوك' : 'ABA Specialist'}</p>
+                          </div>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="col-span-3 flex flex-col justify-between p-4 bg-slate-50/10">
+                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-none">
+                    {!activePartnerId ? (
+                      <div className="text-xs text-slate-400 text-center py-8">{isRtl ? 'لا يوجد متخصصون للتواصل معهم' : 'No specialists to communicate with'}</div>
+                    ) : messages[activeChannel]?.length === 0 ? (
+                      <div className="text-xs text-slate-400 text-center py-8">{isRtl ? 'لا توجد رسائل بعد' : 'No messages yet'}</div>
+                    ) : (
+                      messages[activeChannel]?.map((msg: any) => {
+                        const isParent = msg.senderRole === 'parent' || msg.sender === parentUser.id;
+                        return (
+                          <div key={msg._id || msg.id || Math.random()} className={`flex flex-col ${isParent ? 'items-end' : 'items-start'} animate-fade-in`}>
+                            <div className={`max-w-[80%] p-2.5 rounded-2xl text-xs leading-relaxed ${isParent ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-bl-none border border-slate-100 dark:border-slate-600'}`}>
+                              {msg.text}
+                            </div>
+                            <span className="text-[8px] text-slate-400 mt-0.5 px-1">
+                              {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
-                </div>
 
+                  {activePartnerId && (
+                    <form onSubmit={handleSendMessage} className={`mt-3 flex gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
+                      <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder={isRtl ? 'اكتب رسالتك...' : 'Type a message...'} className={`input flex-1 bg-white dark:bg-slate-900 text-xs h-9 py-1 ${isRtl ? 'text-right direction-rtl' : ''}`} />
+                      <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-xl flex items-center justify-center cursor-pointer transition-colors">
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </form>
+                  )}
+                </div>
               </div>
             </div>
           )}
-        </main>
-      </div>
+
+          {/* TAB: SETTINGS */}
+          {activeTab === 'settings' && (
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-6 animate-fade-in">
+              <div>
+                <h3 className="text-sm font-black text-slate-800">{isRtl ? 'الملف الشخصي' : 'Profile Settings'}</h3>
+                <p className="text-xs text-slate-400 font-semibold">{isRtl ? 'إدارة الملف الشخصي والمستندات' : 'Manage profile and documents'}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-4">
+                <div className="border border-slate-100 p-4 rounded-2xl space-y-3 bg-slate-50/50">
+                  <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'صورتك الشخصية' : 'Your Avatar'}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-indigo-50 border border-indigo-100 overflow-hidden relative flex items-center justify-center text-xl text-slate-600">
+                      {parentAvatar ? <img src={parentAvatar} alt="Parent" className="w-full h-full object-cover" /> : <User className="w-6 h-6" />}
+                    </div>
+                    <label className="py-1.5 px-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer shadow-xs transition-colors">
+                      <Upload className="w-3.5 h-3.5 inline mr-1" /> {isRtl ? 'تحديث' : 'Upload'}
+                      <input type="file" accept="image/*" onChange={(e) => handleAvatarUpload(e, 'parent')} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="border border-slate-100 p-4 rounded-2xl space-y-3 bg-slate-50/50">
+                  <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'صورة الطفل' : 'Child Avatar'}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-xl bg-indigo-50 border border-indigo-100 overflow-hidden relative flex items-center justify-center text-xl">
+                      {childAvatar ? <img src={childAvatar} alt="Child" className="w-full h-full object-cover" /> : '👦'}
+                    </div>
+                    <label className="py-1.5 px-3 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 cursor-pointer shadow-xs transition-colors">
+                      <Upload className="w-3.5 h-3.5 inline mr-1" /> {isRtl ? 'تحديث' : 'Upload'}
+                      <input type="file" accept="image/*" onChange={(e) => handleAvatarUpload(e, 'child')} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'شهادة الميلاد' : 'Birth Certificate'}</span>
+                {birthCertificateUrl ? (
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      <div>
+                        <p>{isRtl ? 'تم الرفع' : 'Uploaded'}</p>
+                        <a href={birthCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-emerald-600 underline font-semibold hover:text-emerald-800 block mt-0.5">
+                          {isRtl ? 'عرض' : 'View'}
+                        </a>
+                      </div>
+                    </div>
+                    <button onClick={() => setBirthCertificateUrl('')} className="p-1.5 bg-white border border-rose-100 rounded-xl text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-full py-6 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer">
+                    <Upload className="w-5 h-5 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-600">{isRtl ? 'رفع شهادة الميلاد' : 'Upload birth certificate'}</span>
+                    <span className="text-[9px] font-medium text-slate-400">PDF / Image</span>
+                    <input type="file" accept="image/*,application/pdf" onChange={handleBirthCertificateUpload} className="hidden" />
+                  </label>
+                )}
+              </div>
+
+              {/* AI PREDICTION */}
+              <div className="border-t pt-4 space-y-3">
+                <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'التحليل السلوكي بالذكاء الاصطناعي' : 'AI Behavioral Analysis'}</span>
+                {loadingPrediction ? (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-12" />
+                ) : predictionError ? (
+                  <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                    <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                    <span className="text-xs font-bold text-amber-700">{predictionError}</span>
+                  </div>
+                ) : predictionData ? (
+                  <div className={`p-4 rounded-2xl border ${predictionData.riskScore > 50 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{isRtl ? 'مؤشر الخطر' : 'Risk Index'}</p>
+                    <p className={`text-2xl font-black font-mono ${predictionData.riskScore > 50 ? 'text-rose-500' : 'text-emerald-500'}`}>{predictionData.riskScore}%</p>
+                    <p className="text-xs font-semibold text-slate-600 mt-1">{predictionData.message}</p>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-slate-50 text-slate-400 text-xs rounded-xl border border-dashed border-slate-200">
+                    {isRtl ? 'سجل سلوكيات الطفل لبدء التحليل' : 'Log behaviors to generate AI insights'}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </main>
     </div>
   );
 }
