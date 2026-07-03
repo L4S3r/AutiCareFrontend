@@ -27,7 +27,7 @@ interface TherapistDashboardProps {
 
 export default function TherapistDashboard({ language, therapistUser, onLogout }: TherapistDashboardProps) {
   const isRtl = language === 'ar';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'patients' | 'sessions' | 'behavior' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'patients' | 'sessions' | 'behavior' | 'chat' | 'settings'>('dashboard');
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -117,6 +117,10 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
             <button onClick={() => { setActiveTab('behavior'); setSelectedPatient(null); }} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'behavior' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
               <FileText className="w-4 h-4 flex-shrink-0" />
               {!sidebarCollapsed && <span>Behavior Tracker</span>}
+            </button>
+            <button onClick={() => { setActiveTab('chat'); setSelectedPatient(null); }} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'chat' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
+              <MessageSquare className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>{isRtl ? 'التواصل' : 'Secure Chat'}</span>}
             </button>
             <button onClick={() => { setActiveTab('settings'); setSelectedPatient(null); }} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'settings' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
               <Settings className="w-4 h-4 flex-shrink-0" />
@@ -353,6 +357,64 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
           )}
 
           {activeTab === 'behavior' && <BehavioralTracker language={language} />}
+
+          {/* TAB: CHAT */}
+          {activeTab === 'chat' && (
+            <div className="animate-fade-in">
+              {selectedPatient ? (() => {
+                const therapistId = therapistUser._id || therapistUser.id || '';
+                const parentObj = selectedPatient.parentId;
+                const parentParticipant = parentObj && typeof parentObj === 'object' && parentObj._id
+                  ? { _id: parentObj._id, name: parentObj.name, role: 'parent' as const, childName: selectedPatient.name }
+                  : null;
+                const doctorObj = selectedPatient.assignedDoctor;
+                const doctorParticipant = doctorObj && typeof doctorObj === 'object' && (doctorObj as any)._id
+                  ? { _id: (doctorObj as any)._id, name: (doctorObj as any).name, role: 'doctor' as const, childName: selectedPatient.name }
+                  : null;
+                const chatParticipants = [parentParticipant, doctorParticipant].filter(Boolean) as ChatParticipant[];
+                return chatParticipants.length > 0 ? (
+                  <ChatBox
+                    childId={selectedPatient._id || selectedPatient.id}
+                    childName={selectedPatient.name}
+                    currentUser={{ _id: therapistId, name: therapistUser.name, role: therapistUser.role || 'therapist' }}
+                    participants={chatParticipants}
+                    language={language}
+                  />
+                ) : (
+                  <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
+                    <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400 font-medium">
+                      {isRtl ? 'لم يتم تعيين والد أو طبيب لهذه الحالة بعد' : 'No parent or doctor assigned to this case yet'}
+                    </p>
+                  </div>
+                );
+              })() : (
+                <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
+                  <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-medium text-slate-700 mb-4">
+                    {isRtl ? 'اختر حالة مريض لبدء التواصل' : 'Select a patient case to start chatting'}
+                  </p>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {patientsList.map((p) => (
+                      <button
+                        key={p._id || p.id}
+                        onClick={() => { setSelectedPatient(p); setActiveTab('chat'); }}
+                        className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-sky-50 rounded-xl border border-slate-100 hover:border-sky-200 transition-all cursor-pointer"
+                      >
+                        <span className="text-sm font-bold text-slate-800">{p.name}</span>
+                        <span className="text-[10px] text-slate-400 ml-2">{(p as any).asdLevel || 'Level 1'}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {patientsList.length === 0 && (
+                    <p className="text-xs text-slate-400 italic">
+                      {isRtl ? 'لا يوجد مرضى مسجلين' : 'No patients assigned yet'}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {activeTab === 'settings' && (
             <div className="space-y-6 animate-fade-in">
