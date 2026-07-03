@@ -625,7 +625,11 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                       <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
                         <Sparkles className="w-3.5 h-3.5" /> {isRtl ? 'الخطة الغذائية' : 'Nutrition Plan'}
                       </span>
-                      <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap">{nutritionPlan.aiRecommendation?.nutritionPlan}</p>
+                      {nutritionPlan.aiRecommendation?.nutritionPlan ? (
+                        <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap">{nutritionPlan.aiRecommendation.nutritionPlan}</p>
+                      ) : (
+                        <p className="text-xs text-slate-500 italic">{isRtl ? 'لا توجد خطة تحليلية متاحة' : 'No analysis plan available.'}</p>
+                      )}
                     </div>
 
                     <div className="space-y-3">
@@ -646,10 +650,10 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
                   <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-6">
                     {(() => {
-                      const restrictions = nutritionPlan.aiRecommendation?.foodRestrictions || [];
-                      const mid = Math.ceil(restrictions.length / 2);
-                      const restricted = restrictions.slice(0, mid);
-                      const toInclude = restrictions.slice(mid);
+                      const restricted = nutritionPlan.aiRecommendation?.foodRestrictions || [];
+                      const toInclude = nutritionPlan.aiRecommendation?.foodsToInclude
+                        ? nutritionPlan.aiRecommendation.foodsToInclude
+                        : (nutritionPlan.aiRecommendation?.mealSuggestions || []).flatMap((m: any) => m.suggestions || []);
                       return (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
