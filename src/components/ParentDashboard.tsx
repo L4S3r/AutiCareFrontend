@@ -746,7 +746,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                       const restricted = restrictions.slice(0, mid);
                       const toInclude = restrictions.slice(mid);
                       return (
-                        <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
                             <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block">{isRtl ? 'الأطعمة الممنوعة' : 'Restricted Foods'}</span>
                             {restricted.length === 0 ? (
@@ -771,7 +771,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                               </ul>
                             )}
                           </div>
-                        </>
+                        </div>
                       );
                     })()}
 
