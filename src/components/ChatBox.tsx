@@ -70,7 +70,7 @@ export default function ChatBox({ childId, childName, currentUser, participants,
 
   useEffect(() => {
     if (!currentUser._id) return;
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const socket = io(socketUrl);
     socketRef.current = socket;
 
