@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, MessageSquare, User, Stethoscope, Heart } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { Language } from '../types';
-import { getChatHistory } from '../api';
+import { getChatHistory, sendHttpMessage } from '../api';
 
 export interface ChatParticipant {
   _id: string;
@@ -89,32 +89,41 @@ export default function ChatBox({ childId, childName, currentUser, participants,
     };
   }, [currentUser._id, childId, activeParticipant]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !socketRef.current || !activeParticipant) return;
+    if (!inputText.trim() || !activeParticipant) return;
 
-    const payload = {
-      patientId: childId,
-      senderId: currentUser._id,
-      senderRole: currentUser.role.toLowerCase(),
-      receiverId: activeParticipant._id,
-      text: inputText.trim()
-    };
-
-    socketRef.current.emit('send_direct_message', payload);
-
+    const text = inputText.trim();
     const optimistic: any = {
       _id: Date.now().toString(),
       patientId: childId,
       sender: currentUser._id,
       senderRole: currentUser.role.toLowerCase(),
       receiver: activeParticipant._id,
-      text: inputText.trim(),
+      text,
       createdAt: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, optimistic]);
     setInputText('');
+
+    // Try socket first for real-time delivery, fall back to HTTP REST
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('send_direct_message', {
+        patientId: childId,
+        senderId: currentUser._id,
+        senderRole: currentUser.role.toLowerCase(),
+        receiverId: activeParticipant._id,
+        text,
+      });
+    } else {
+      await sendHttpMessage({
+        patientId: childId,
+        receiverId: activeParticipant._id,
+        text,
+        senderRole: currentUser.role.toLowerCase() as 'parent' | 'doctor' | 'therapist',
+      });
+    }
   };
 
   const participantLabel = (p: ChatParticipant) => {

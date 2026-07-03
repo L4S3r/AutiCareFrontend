@@ -397,7 +397,7 @@ export const getChatHistory = async (
 ): Promise<{ success: boolean; data?: any[]; error?: string }> => {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/history/${patientId}/${partnerId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/history/${patientId}/${partnerId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -422,7 +422,7 @@ export const sendHttpMessage = async (payload: {
 }): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/send`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
