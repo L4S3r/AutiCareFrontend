@@ -128,7 +128,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const recognitionRef = useRef<any>(null);
   const shouldBeListeningRef = useRef(false);
 
-  const loadEcosystemLogs = async () => {
+  const loadBehaviorLogs = async () => {
     try {
       const res = await getBehaviorLogs(childId);
       if (res.success && res.data && res.data.length > 0) {
@@ -144,11 +144,11 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
         setLogs([]);
       }
     } catch (err) {
-      console.error("Failed to restore behavioral logs:", err);
+      console.error("Failed to load logs:", err);
     }
   };
 
-  const fetchAIAnalysisModel = async () => {
+  const fetchPredictionData = async () => {
     try {
       setLoadingPrediction(true);
       setPredictionError('');
@@ -157,7 +157,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
         setPredictionData(predRes.data);
       }
     } catch (err) {
-      setPredictionError(isRtl ? 'التحليل قيد المعايرة' : 'AI analytics calibrating.');
+      setPredictionError(isRtl ? 'التحليل قيد التشغيل' : 'Analysis ongoing.');
     } finally {
       setLoadingPrediction(false);
     }
@@ -179,8 +179,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
     };
     if (childId) {
       fetchNutritionData();
-      loadEcosystemLogs();
-      fetchAIAnalysisModel();
+      loadBehaviorLogs();
+      fetchPredictionData();
       fetchNotifications();
     }
   }, [childId, language]);
@@ -259,8 +259,8 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
       if (res.success) {
         setLogSuccess(true);
         setLogNotes('');
-        await loadEcosystemLogs();
-        await fetchAIAnalysisModel();
+        await loadBehaviorLogs();
+        await fetchPredictionData();
         setTimeout(() => setLogSuccess(false), 3500);
       }
     } catch (err) {
@@ -358,7 +358,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   : `Welcome, ${childName || parentUser.name}`
                 }
               </h2>
-              <p className="text-xs text-slate-400 font-semibold">{isRtl ? 'بوابة الرعاية السلوكية والغذائية' : 'Behavioral & Nutrition Care Portal'}</p>
+              <p className="text-xs text-slate-400 font-semibold">{isRtl ? 'بوابة الرعاية الغذائية' : 'Nutrition & Care Portal'}</p>
             </div>
 
             <div className="flex items-center gap-4">
@@ -366,7 +366,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                 <button onClick={() => setNotifOpen(!notifOpen)} className="p-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-indigo-600 transition-all cursor-pointer relative">
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full animate-bounce">
+                    <span className="absolute -top-1 -right-1 text-[9px] font-black text-rose-500">
                       {unreadCount}
                     </span>
                   )}
@@ -399,9 +399,9 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                 )}
               </div>
 
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 flex items-center gap-1.5 text-xs font-bold">
-                <ShieldCheck className="w-4 h-4" />
-                <span className="text-[10px] tracking-wider uppercase font-mono">{isRtl ? 'محمي' : 'Protected'}</span>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>{isRtl ? 'محمي' : 'Protected'}</span>
               </div>
             </div>
           </div>
@@ -421,7 +421,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   </div>
                   <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{isRtl ? 'المستوى' : 'Level'}</span>
-                    <span className="mt-1 bg-indigo-50 text-indigo-700 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase inline-block">
+                    <span className="text-sm font-black text-slate-800 block mt-1">
                       {childLevel || '-'}
                     </span>
                   </div>
@@ -474,14 +474,14 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                     <Sliders className="w-3.5 h-3.5 text-indigo-500" />
                     {isRtl ? 'تسجيل يومي' : 'Daily Log'}
                   </h4>
-                  <button onClick={toggleVoiceLogging} className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase transition-all shadow-xs border cursor-pointer ${isListening ? 'bg-rose-500 text-white border-rose-600 animate-pulse' : 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white'}`}>
+                  <button onClick={toggleVoiceLogging} className={`flex items-center gap-1 text-xs font-bold transition-all cursor-pointer ${isListening ? 'text-rose-500 animate-pulse' : 'text-indigo-600 hover:text-indigo-800'}`}>
                     <Mic className="w-3 h-3" />
                     <span>{isListening ? (isRtl ? 'جاري السماع...' : 'Listening...') : (isRtl ? 'إدخال صوتي' : 'Voice Log')}</span>
                   </button>
                 </div>
 
                 {voiceError && <div className="text-[9px] text-rose-500 font-bold">⚠️ {voiceError}</div>}
-                {logSuccess && <div className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2.5 py-0.5 rounded-full uppercase animate-fade-in">{isRtl ? 'تم الحفظ!' : 'Saved!'}</div>}
+                {logSuccess && <div className="text-xs font-bold text-emerald-600 animate-fade-in">{isRtl ? 'تم الحفظ!' : 'Saved!'}</div>}
 
                 <form onSubmit={handleAddLogSubmit} className="space-y-4">
                   <div className="space-y-1 text-left">
@@ -558,13 +558,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                           <tr key={i}>
                             <td className="py-3 font-mono font-bold text-slate-800">{log.date || ''}</td>
                             <td>
-                              <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-full uppercase ${
-                                log.mood === 'very_happy' ? 'bg-emerald-100 text-emerald-700' :
-                                log.mood === 'happy' ? 'bg-emerald-50 text-emerald-600' :
-                                log.mood === 'neutral' ? 'bg-slate-100 text-slate-600' :
-                                log.mood === 'anxious' ? 'bg-amber-50 text-amber-600' :
-                                'bg-rose-50 text-rose-600'
-                              }`}>
+                              <span className="text-xs font-bold text-slate-600">
                                 {log.mood.replace('_', ' ')}
                               </span>
                             </td>
@@ -595,7 +589,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                 )}
 
                 <div className="border-t pt-4 space-y-3">
-                  <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'التحليل السلوكي بالذكاء الاصطناعي' : 'AI Behavioral Analysis'}</span>
+                  <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'التحليل السلوكي' : 'Behavioral Analysis'}</span>
                   {loadingPrediction ? (
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-12" />
                   ) : predictionError ? (
@@ -611,7 +605,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                     </div>
                   ) : (
                     <div className="p-4 bg-slate-50 text-slate-400 text-xs rounded-xl border border-dashed border-slate-200">
-                      {isRtl ? 'سجل سلوكيات الطفل لبدء التحليل' : 'Log behaviors to generate AI insights'}
+                      {isRtl ? 'سجل سلوكيات الطفل لبدء التحليل' : 'Log behaviors to see trends'}
                     </div>
                   )}
                 </div>
@@ -629,7 +623,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   <div className="lg:col-span-2 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-6">
                     <div className={`bg-slate-950 text-slate-200 p-4 rounded-2xl space-y-2 border border-slate-800 ${isRtl ? 'text-right' : 'text-left'}`}>
                       <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5" /> {isRtl ? 'الخطة الغذائية' : 'AI Nutrition Plan'}
+                        <Sparkles className="w-3.5 h-3.5" /> {isRtl ? 'الخطة الغذائية' : 'Nutrition Plan'}
                       </span>
                       <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap">{nutritionPlan.aiRecommendation?.nutritionPlan}</p>
                     </div>
@@ -641,7 +635,7 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                           <div key={i} className={`p-3 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-between ${isRtl ? 'text-right' : 'text-left'}`}>
                             <div className="flex justify-between items-center w-full">
                               <span className="font-bold text-xs text-slate-800">{s.name}</span>
-                              <span className="bg-indigo-50 text-indigo-700 font-black text-[9px] px-2 py-0.5 rounded uppercase">{s.dosage || s.dose}</span>
+                              <span className="text-xs font-bold text-indigo-700">{s.dosage || s.dose}</span>
                             </div>
                             {s.notes && <p className="text-[10px] text-slate-400 font-medium italic mt-1">{s.notes}</p>}
                           </div>

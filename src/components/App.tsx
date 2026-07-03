@@ -16,11 +16,6 @@ import Hero from './Hero';
 import Features from './Features';
 import Pricing from './Pricing';
 import Contact from './Contact';
-import GeneticAIExplorer from './GeneticAIExplorer';
-import BehavioralTracker from './BehavioralTracker';
-import CareCoordinationHub from './CareCoordinationHub';
-import DevelopmentGames from './DevelopmentGames';
-import SecurityCompliance from './SecurityCompliance';
 import SignUp from './SignUp';
 import Login from './Login';
 import Legal from './Legal';
@@ -111,8 +106,8 @@ function ChildOnboardingWizard({ language, onSuccess, onLogout }: ChildOnboardin
             {isRtl ? 'إعداد ملف الطفل 👦' : 'Child Profile Setup 👦'}
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-            {isRtl 
-              ? 'يرجى إكمال إدخال بيانات طفلك للوصول إلى لوحة التحكم.' 
+            {isRtl
+              ? 'يرجى إكمال إدخال بيانات طفلك للوصول إلى لوحة التحكم.'
               : 'Please complete your child\'s profile details to unlock the care dashboard.'}
           </p>
         </div>
@@ -228,11 +223,11 @@ interface AppProps {
 // dashboard" class of bugs caused by missing branches in ad-hoc if-chains.
 const mapRole = (raw: string | undefined): UserRole => {
   switch ((raw ?? '').toLowerCase()) {
-    case 'doctor':    return 'Doctor';
+    case 'doctor': return 'Doctor';
     case 'therapist': return 'Therapist';
-    case 'admin':     return 'Admin';
-    case 'child':     return 'Child';
-    default:          return 'Parent';
+    case 'admin': return 'Admin';
+    case 'child': return 'Child';
+    default: return 'Parent';
   }
 };
 
@@ -392,7 +387,7 @@ export default function App({ initialTab = 'home' }: AppProps) {
     const handleAccountDisabled = (e: Event) => {
       const customEvent = e as CustomEvent;
       const errorMsg = customEvent.detail || 'Account suspended. Contact your clinical administrator.';
-      
+
       setCurrentUser(null);
       setActiveChild(null);
       localStorage.removeItem('token');

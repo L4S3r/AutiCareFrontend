@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client';
 import { Language } from '../types';
 import { getChatHistory } from '../api';
 
-interface ChatParticipant {
+export interface ChatParticipant {
   _id: string;
   name: string;
   role: 'doctor' | 'therapist' | 'parent';
@@ -152,7 +152,7 @@ export default function ChatBox({ childId, childName, currentUser, participants,
             </p>
           </div>
         </div>
-        <span className="text-[10px] bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
+        <span className="text-[10px] font-bold text-blue-100">
           {isRtl ? 'مباشر' : 'Live'}
         </span>
       </div>
@@ -182,7 +182,7 @@ export default function ChatBox({ childId, childName, currentUser, participants,
 
         <div className="col-span-3 flex flex-col justify-between bg-slate-50/10">
           <div className="flex-1 overflow-y-auto space-y-2.5 p-4 pr-1 scrollbar-none">
-            <div className={`text-center mb-3 p-2 rounded-xl border text-[10px] font-medium ${activeRoleColor}`}>
+            <div className={`text-center mb-3 text-[10px] font-medium ${activeRoleColor}`}>
               {isRtl ? 'أنت تتحدث مع' : 'You are chatting with'} {participantLabel(activeParticipant)}
             </div>
 

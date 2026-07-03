@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { getPatients, getGeneticReports, generateNutritionPlan, approveNutritionPlan, getNutritionPlans, updateProfileAvatar, uploadGeneticReportFile, getUnassignedPatients, assignSelfToPatient } from '../api';
-import ChatBox from './ChatBox';
+import ChatBox, { ChatParticipant } from './ChatBox';
 
 interface DoctorDashboardProps {
   language: Language;
@@ -31,7 +31,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
   const [loading, setLoading] = useState(false);
   const [dummyState, setDummyState] = useState(0);
 
-  // Identity Provisioning Data States
+  // Patient data states
   const [patientsList, setPatientsList] = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
   const [geneticReport, setGeneticReport] = useState<any | null>(null);
@@ -54,7 +54,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
   const stats = [
     { label: 'Active Case Profiles', value: patientsList.length.toString() || '24', icon: <Users className="w-5 h-5 text-sky-500" /> },
     { label: 'Pending Approvals', value: '3', icon: <Clock className="w-5 h-5 text-amber-500" /> },
-    { label: 'HIPAA Validation', value: 'Compliant', icon: <ShieldCheck className="w-5 h-5 text-emerald-500" /> }
+    { label: 'HIPAA Status', value: 'Compliant', icon: <ShieldCheck className="w-5 h-5 text-emerald-500" /> }
   ];
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
           setPatientsList(res.data);
         }
       } catch (err) {
-        console.error("Error retrieving baseline user records:", err);
+        console.error("Error fetching patients:", err);
       } finally {
         setLoadingPatients(false);
       }
@@ -83,7 +83,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
     try {
       const reportRes = await getGeneticReports(patient._id || patient.id);
       if (reportRes.success && reportRes.data && reportRes.data.length > 0) {
-        console.log("👉 FULL GENETIC REPORT DATA:", reportRes.data[0]);
+        console.log("Genetic report data:", reportRes.data[0]);
         setGeneticReport(reportRes.data[0]);
 
         const planRes = await getNutritionPlans(patient._id || patient.id);
@@ -93,7 +93,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
         }
       }
     } catch (err) {
-      console.error("Error connecting with downstream database fields:", err);
+      console.error("Error fetching patient data:", err);
     }
   };
 
@@ -115,10 +115,9 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
       assignedTherapists: updatedTherapists
     };
 
-    // Optimistically mutate states in-memory concurrently
     setSelectedPatient(updatedPatient);
     setPatientsList(prev => prev.map(p => (p._id || p.id) === updatedPatient._id ? updatedPatient : p));
-    setDummyState(prev => prev + 1); // Enforce view-tree re-render pass
+    setDummyState(prev => prev + 1);
   };
 
   const handleTriggerAIEngine = async () => {
@@ -128,11 +127,11 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
       const res = await generateNutritionPlan(selectedPatient._id || selectedPatient.id, geneticReport._id || geneticReport.id);
       if (res.success) {
         setNutritionPlan(res.data);
-        setActionSuccess('Genomic cofactor metrics compiled successfully by Gemini!');
+        setActionSuccess('Nutrition plan generated successfully!');
         setTimeout(() => setActionSuccess(''), 4000);
       }
     } catch (err) {
-      console.error("AI execution layout error:", err);
+      console.error("Error generating plan:", err);
     } finally {
       setIsGenerating(false);
     }
@@ -175,8 +174,8 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
         }
       }
     } catch (err: any) {
-      console.error('Clinical verification sign-off layer failed:', err);
-      setClinicalError(err.message || 'Failed to update validation flag state.');
+      console.error('Approval failed:', err);
+      setClinicalError(err.message || 'Failed to approve the plan.');
     } finally {
       setIsApproving(false);
     }
@@ -227,7 +226,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
         <div className="p-6 md:p-8 space-y-6 text-left select-none">
           <div className="border-b pb-4">
             <h2 className="text-xl font-black text-slate-800">Welcome, Dr. {doctorUser.name}</h2>
-            <p className="text-xs text-slate-400 font-semibold">{doctorUser.clinic || 'Autism Specialty Care & Clinical Telemetry Advisor'}</p>
+            <p className="text-xs text-slate-400 font-semibold">{doctorUser.clinic || 'Autism Specialty Care'}</p>
           </div>
 
           {actionSuccess && (
@@ -317,7 +316,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
               )}
 
               <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden">
-                <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase mb-4">Assigned Cases Directory</h3>
+                  <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase mb-4">My Patients</h3>
                 {loadingPatients ? (
                   <div className="space-y-3 p-2">
                     <div className="h-7 w-full animate-shimmer rounded-xl" />
@@ -334,9 +333,9 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                         {patientsList.map((p) => (
                           <tr key={p._id || p.id} className="border-b border-slate-50 hover:bg-slate-50/40 transition-colors">
                             <td className="py-3 font-bold text-slate-800">{p.name}</td>
-                            <td><span className="bg-sky-50 text-sky-600 font-black px-2.5 py-0.5 rounded-full text-[10px] uppercase">{p.asdLevel || 'level1'}</span></td>
+                            <td><span className="text-xs font-bold text-slate-500">{p.asdLevel || 'Level 1'}</span></td>
                             <td className="text-right">
-                              <button onClick={() => handleInspectPatient(p)} className="px-2.5 py-1.5 bg-slate-100 border border-slate-200 hover:bg-sky-500 hover:text-white rounded-lg transition-all text-[10px] font-black cursor-pointer">Inspect Case & Nutrition</button>
+                              <button onClick={() => handleInspectPatient(p)} className="px-2.5 py-1.5 bg-slate-100 border border-slate-200 hover:bg-sky-500 hover:text-white rounded-lg transition-all text-[10px] font-black cursor-pointer">Open Case</button>
                             </td>
                           </tr>
                         ))}
@@ -366,8 +365,8 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                     <Users size={14} className="text-brand-500" />
                     {isRtl ? 'الأخصائي المعالج المشترك' : 'Assigned Care Team Specialist'}
                   </h4>
-                  <span className="text-[10px] bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-md font-semibold">
-                    {isRtl ? 'تعديل فوري' : 'In-Memory Sync'}
+                  <span className="text-xs font-semibold text-slate-500">
+                    {isRtl ? 'تعديل فوري' : 'Real-time'}
                   </span>
                 </div>
 
@@ -375,8 +374,8 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                   {selectedPatient.assignedTherapists && selectedPatient.assignedTherapists.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {selectedPatient.assignedTherapists.map((therapist: any) => (
-                        <div key={therapist._id || therapist.id} className="bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-100 dark:border-slate-600">
-                          🧑‍🏫 {therapist.name}
+                        <div className="text-xs font-medium text-slate-600">
+                          {therapist.name}
                         </div>
                       ))}
                     </div>
@@ -387,7 +386,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
 
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
                   <p className="text-[11px] font-semibold text-slate-500 mb-2">
-                    {isRtl ? 'إسناد سريع للحالة (دون حظر قاعدة البيانات):' : 'Optimistic Therapist Assignment Overrides:'}
+                    {isRtl ? 'إسناد أخصائي:' : 'Assign a therapist:'}
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -409,13 +408,13 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Panel Left: DNA Polymorphisms Extraction */}
                 <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 border-b pb-2 flex items-center space-x-2"><Dna className="w-4 h-4 text-sky-500" /><span>Biomarker PDF Mappings</span></h4>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-sky-800 border-b pb-2 flex items-center space-x-2"><Dna className="w-4 h-4 text-sky-500" /><span>Genetic Report</span></h4>
                   {geneticReport ? (
                     <div className="space-y-3">
                       <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 text-xs font-semibold">
-                        <p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">
-                          Source Sequence Metadata
-                        </p>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold mb-0.5">
+                            Report File
+                          </p>
                         <p className="font-mono text-slate-800 truncate">
                           {geneticReport.fileName || geneticReport.reportFileName || "Unnamed Report.pdf"}
                         </p>
@@ -440,26 +439,26 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                         {geneticReport.parsedMarkers?.map((m: any, i: number) => (
                           <div key={i} className="p-2.5 border border-slate-100 rounded-xl flex justify-between items-center text-xs bg-slate-50/40">
                             <div><span className="font-black text-slate-800 block">{m.marker}</span><span className="text-[10px] text-slate-400 font-medium">{m.notes || 'Biomarker variant aligned.'}</span></div>
-                            <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-black text-[9px] uppercase">{m.result}</span>
+                            <span className="text-xs font-bold text-rose-700">{m.result}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <div className="p-8 border border-dashed rounded-2xl text-center text-slate-400 text-xs bg-slate-50/50">No processed DNA sequence document maps exist for this record profile.</div>
+                    <div className="p-8 border border-dashed rounded-2xl text-center text-slate-400 text-xs bg-slate-50/50">No genetic report available for this patient.</div>
                   )}
                 </div>
 
                 {/* Panel Right: Plan Generator and Compliance Signer */}
                 <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4 flex flex-col justify-between">
                   <div className="space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-emerald-800 border-b pb-2 flex items-center space-x-2"><Sparkles className="w-4 h-4 text-emerald-500" /><span>Dietary Rule Orchestrator</span></h4>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-emerald-800 border-b pb-2 flex items-center space-x-2"><Sparkles className="w-4 h-4 text-emerald-500" /><span>Nutrition Plan Generator</span></h4>
 
                     {geneticReport && !nutritionPlan && (
                       <div className="p-6 text-center space-y-3">
-                        <p className="text-xs text-slate-400 font-medium">Extracted mutations are online. Trigger the Generative AI models to construct a cyclic dietary plan framework.</p>
+                        <p className="text-xs text-slate-400 font-medium">Genetic markers extracted. Generate a personalized nutrition plan based on the findings.</p>
                         <button onClick={handleTriggerAIEngine} disabled={isGenerating} className="px-4 py-2 bg-sky-500 text-white text-xs font-black rounded-xl hover:bg-sky-600 transition-colors cursor-pointer flex items-center gap-1.5 shadow shadow-sky-500/10">
-                          <Wand2 className="w-4 h-4" /><span>{isGenerating ? 'Gemini executing OCR arrays...' : 'Compile AI Framework Plan'}</span>
+                          <Wand2 className="w-4 h-4" /><span>{isGenerating ? 'Generating plan...' : 'Generate Nutrition Plan'}</span>
                         </button>
                       </div>
                     )}
@@ -469,7 +468,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
 
                         {/* 1. COMPREHENSIVE AI PLAN OVERVIEW TEXT */}
                         <div className="bg-slate-950 text-slate-100 p-4 rounded-2xl border border-slate-800 space-y-2">
-                          <span className="text-[9px] font-black text-sky-400 block uppercase tracking-wider">AI Generated Nutrition Framework</span>
+                          <span className="text-[9px] font-black text-sky-400 block uppercase tracking-wider">Recommended Nutrition Plan</span>
                           <div className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap">
                             {nutritionPlan.aiRecommendation?.nutritionPlan}
                           </div>
@@ -477,13 +476,13 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
 
                         {/* 2. THE EXPANDED SUPPLEMENT MATRIX */}
                         <div className="space-y-2">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">💊 Supplement Matrix & Titration</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Recommended Supplements</span>
                           <div className="grid grid-cols-1 gap-2">
                             {nutritionPlan.aiRecommendation?.supplements?.map((s: any, idx: number) => (
                               <div key={idx} className="bg-white border border-slate-100 p-3 rounded-xl flex flex-col space-y-1 shadow-sm">
                                 <div className="flex justify-between items-center">
                                   <span className="font-bold text-slate-800">{s.name}</span>
-                                  <span className="bg-sky-50 text-sky-700 font-black px-2 py-0.5 rounded text-[9px] uppercase">{s.dosage} ({s.frequency})</span>
+                                  <span className="text-xs font-bold text-sky-700">{s.dosage} ({s.frequency})</span>
                                 </div>
                                 {s.notes && <p className="text-[11px] text-slate-400 font-medium italic">Reason: {s.notes}</p>}
                               </div>
@@ -532,7 +531,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                         {/* 4. BIOCHEMICAL REASONING NOTES */}
                         {nutritionPlan.aiRecommendation?.reasoning && (
                           <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">🧠 RAG Pipeline Core Reasoning</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Clinical Reasoning Notes</span>
                             <p className="text-slate-600 font-medium leading-relaxed italic">{nutritionPlan.aiRecommendation.reasoning}</p>
                           </div>
                         )}
@@ -543,7 +542,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                           <textarea
                             value={doctorNotes}
                             onChange={(e) => { setDoctorNotes(e.target.value); if (clinicalError) setClinicalError(''); }}
-                            placeholder="Type custom overrides, exclusions, or titration dosage requirements for the parent dashboard view container..."
+                            placeholder="Type custom notes, exclusions, or dosage adjustments for the parent view..."
                             className="w-full p-2.5 h-20 bg-slate-50 border rounded-xl font-medium outline-none resize-none focus:border-brand-500 transition-colors"
                           />
                           {/* ── Clinical Safety Alert ── */}
@@ -563,13 +562,13 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                         <div className="mx-auto w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center mb-2">
                           <Upload className="w-5 h-5 text-sky-500 animate-bounce" />
                         </div>
-                        <p className="text-sm font-black text-slate-700">Scan Raw Diagnostics Lab Report</p>
+                        <p className="text-sm font-black text-slate-700">Upload Genetic Lab Report</p>
                         <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mx-auto leading-normal mt-1">
-                          Upload raw saliva/blood analysis (PDF/Images). Our self-hosted RAG pipeline will extract genetic markers via OCR.
+                          Upload lab report (PDF/Images). Markers will be extracted automatically.
                         </p>
                         <label className="inline-flex items-center px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shadow-sm mt-3">
                           <FileText className="w-4 h-4 mr-1.5" />
-                          <span>{loading ? 'Processing OCR Matrix...' : 'Choose Lab Document'}</span>
+                          <span>{loading ? 'Uploading & processing...' : 'Choose Lab Document'}</span>
                           <input
                             type="file"
                             accept=".pdf,.png,.jpg,.jpeg,.tiff"
@@ -587,17 +586,17 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                                 const res = await uploadGeneticReportFile(
                                   selectedPatient._id || selectedPatient.id,
                                   pickedFile,
-                                  "Automated Next.js clinician upload dashboard instance.",
-                                  "Staging Labs"
+                                  "Doctor dashboard upload",
+                                  "Lab Report"
                                 );
 
                                 if (res) {
-                                  setActionSuccess('Lab report analysis complete! Multi-tiered nutrition cycle generated.');
+                                  setActionSuccess('Lab report uploaded successfully! Nutrition plan generated.');
                                   handleInspectPatient(selectedPatient);
                                 }
                               } catch (err: any) {
                                 console.error("OCR Extraction Failed:", err);
-                                setClinicalError(err.message || 'Failed to successfully resolve vector match parameters.');
+                                setClinicalError(err.message || 'Failed to process the lab report.');
                               } finally {
                                 setLoading(false);
                               }
@@ -637,7 +636,7 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                       role: 'therapist' as const,
                       childName: selectedPatient.name
                     }));
-                  const chatParticipants = [parentParticipant, ...therapistParticipants].filter(Boolean);
+                  const chatParticipants = [parentParticipant, ...therapistParticipants].filter(Boolean) as ChatParticipant[];
                   return chatParticipants.length > 0 ? (
                     <ChatBox
                       childId={selectedPatient._id || selectedPatient.id}

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users, Calendar, Clock, LogOut, CheckCircle2, AlertCircle,
   Smile, Heart, ArrowRight, ShieldCheck, FileText, Settings,
@@ -9,7 +9,7 @@ import {
 import { Language } from '../types';
 import BehavioralTracker from './BehavioralTracker';
 import { updateProfileAvatar, getUnassignedPatients, assignSelfToPatient, getPatients } from '../api';
-import ChatBox from './ChatBox';
+import ChatBox, { ChatParticipant } from './ChatBox';
 
 interface TherapistDashboardProps {
   language: Language;
@@ -239,7 +239,7 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                         <tr key={p.id} className="border-b border-slate-50 text-slate-600">
                           <td className="py-3 font-bold text-slate-800">{p.name}</td>
                           <td className="py-3">{p.age}</td>
-                          <td className="py-3"><span className="bg-sky-50 text-sky-600 font-bold px-2 py-0.5 rounded-full">{p.level}</span></td>
+                          <td className="py-3"><span className="text-xs font-bold text-sky-600">{p.level}</span></td>
                           <td className="py-3 text-right">
                             <button onClick={() => setSelectedPatient(p)} className="px-2.5 py-1 bg-slate-100 border border-slate-200 hover:bg-sky-500 hover:text-white rounded-lg transition-colors text-[10px] font-bold">View Profile</button>
                           </td>
@@ -273,8 +273,8 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                   <Stethoscope size={14} className="text-brand-500" />
                   {isRtl ? 'الطبيب السريري المشرف' : 'Supervising Clinical Physician'}
                 </h4>
-                <span className="text-[10px] bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-md font-semibold">
-                  {isRtl ? 'تزامن فوري' : 'In-Memory Sync'}
+                <span className="text-xs font-semibold text-purple-600">
+                  {isRtl ? 'تزامن فوري' : 'Real-time'}
                 </span>
               </div>
 
@@ -334,7 +334,7 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                 const doctorParticipant = doctorObj && typeof doctorObj === 'object' && (doctorObj as any)._id
                   ? { _id: (doctorObj as any)._id, name: (doctorObj as any).name, role: 'doctor' as const, childName: selectedPatient.name }
                   : null;
-                const chatParticipants = [parentParticipant, doctorParticipant].filter(Boolean);
+                const chatParticipants = [parentParticipant, doctorParticipant].filter(Boolean) as ChatParticipant[];
                 return chatParticipants.length > 0 ? (
                   <ChatBox
                     childId={selectedPatient._id || selectedPatient.id}

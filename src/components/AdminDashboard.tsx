@@ -144,7 +144,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                 fetchUsers(selectedRoleFilter);
             }
         } catch (err) {
-            console.error("Failed to alter node security profile:", err);
+            console.error("Failed to update user status:", err);
             showErrorMessage("Failed to update user status");
         } finally {
             setActiveDropdownId(null);
@@ -269,18 +269,18 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                         </button>
                         <button onClick={() => setActiveTab('users')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'users' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
                             <UserCog className="w-4 h-4 flex-shrink-0" />
-                            {!sidebarCollapsed && <span>User Control</span>}
+                            {!sidebarCollapsed && <span>Users</span>}
                         </button>
                         <button onClick={() => setActiveTab('audit')} className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-left flex items-center ${activeTab === 'audit' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'} ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}`}>
                             <Shield className="w-4 h-4 flex-shrink-0" />
-                            {!sidebarCollapsed && <span>HIPAA Audit Trails</span>}
+                            {!sidebarCollapsed && <span>Audit Log</span>}
                         </button>
                     </nav>
                 </div>
 
                 <button onClick={onLogout} className="w-full py-2 bg-rose-500/10 text-rose-400 rounded-xl text-xs font-black flex items-center justify-center gap-2">
                     <LogOut className="w-3.5 h-3.5" />
-                    {!sidebarCollapsed && <span>SHUTDOWN</span>}
+                    {!sidebarCollapsed && <span>LOGOUT</span>}
                 </button>
             </aside>
 
@@ -289,8 +289,8 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                 <div className="p-6 md:p-8 space-y-6 text-left">
                     <div className="border-b border-slate-200/80 pb-4 flex justify-between items-center">
                         <div>
-                            <h2 className="text-xl font-black text-slate-800">Root Node Dashboard</h2>
-                            <p className="text-xs text-slate-400 font-semibold">Active Session: {adminUser.email} • System Compliance Level Secured</p>
+                            <h2 className="text-xl font-black text-slate-800">Admin Dashboard</h2>
+                            <p className="text-xs text-slate-400 font-semibold">Active Session: {adminUser.email}</p>
                         </div>
                         <button 
                             onClick={() => activeTab === 'overview' ? fetchStats() : activeTab === 'users' ? (fetchUsers(selectedRoleFilter), fetchUnverifiedPractitioners()) : fetchAuditLogs()}
@@ -316,16 +316,16 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                     {activeTab === 'overview' && (
                         <div className="space-y-6">
                             {loadingStats && !stats ? (
-                                <div className="text-center py-10 font-mono text-xs text-slate-400">Syncing live server statistics...</div>
+                                <div className="text-center py-10 text-xs text-slate-400">Loading statistics...</div>
                             ) : (
                                 <>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-                                            <span className="text-[10px] uppercase font-black text-slate-400 block">Total Enrolled Nodes</span>
+                                            <span className="text-[10px] uppercase font-black text-slate-400 block">Total Users</span>
                                             <p className="text-2xl font-black text-slate-800 mt-1">{stats?.users ?? 0} Users</p>
                                         </div>
                                         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-                                            <span className="text-[10px] uppercase font-black text-slate-400 block">Encrypted Database Objects</span>
+                                            <span className="text-[10px] uppercase font-black text-slate-400 block">Total Patients</span>
                                             <p className="text-2xl font-black text-slate-800 mt-1">{stats?.patients ?? 0} Patients</p>
                                         </div>
                                         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
@@ -390,7 +390,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                 <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-3xl p-6 shadow-sm">
                                     <div className="flex items-center space-x-2.5 mb-4">
                                         <Shield className="w-5 h-5 text-amber-600 animate-pulse" />
-                                        <h3 className="text-xs font-black text-amber-800 uppercase tracking-widest">Clinical Qualification Approval Queue</h3>
+                                        <h3 className="text-xs font-black text-amber-800 uppercase tracking-widest">Practitioner Approval Queue</h3>
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -401,15 +401,15 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                         <h4 className="font-bold text-slate-800 text-sm">{prac.name}</h4>
                                                         <p className="text-xs text-slate-400">{prac.email}</p>
                                                         <div className="flex flex-wrap gap-1.5 mt-2">
-                                                            <span className="inline-block px-2 py-0.5 rounded-full font-black text-[9px] uppercase bg-amber-100 text-amber-700">
+                                                            <span className="text-xs font-bold text-amber-700">
                                                                 {prac.role}
                                                             </span>
                                                             {prac.credentialsVerified ? (
-                                                                <span className="inline-block px-2 py-0.5 rounded-full font-black text-[9px] uppercase bg-emerald-100 text-emerald-700">
+                                                                <span className="text-xs font-bold text-emerald-700">
                                                                     Credentials ✓
                                                                 </span>
                                                             ) : (
-                                                                <span className="inline-block px-2 py-0.5 rounded-full font-black text-[9px] uppercase bg-indigo-100 text-indigo-700">
+                                                                <span className="text-xs font-bold text-indigo-700">
                                                                     Awaiting Docs Validation
                                                                 </span>
                                                             )}
@@ -419,7 +419,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                         onClick={() => setExpandedPractitionerId(expandedPractitionerId === prac._id ? null : prac._id)}
                                                         className="text-xs font-bold text-sky-600 hover:text-sky-700 underline cursor-pointer"
                                                     >
-                                                        {expandedPractitionerId === prac._id ? 'Close Audit' : 'Audit Credentials'}
+                                                        {expandedPractitionerId === prac._id ? 'Close' : 'Review Credentials'}
                                                     </button>
                                                 </div>
 
@@ -492,7 +492,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                             </button>
                                                         ) : (
                                                             <>
-                                                                <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-700 text-[10px] font-black shadow-sm">
+                                                                <span className="inline-flex items-center text-xs font-bold text-emerald-700">
                                                                     <CheckCircle className="w-3.5 h-3.5 mr-1" />
                                                                     Credentials Approved
                                                                 </span>
@@ -519,7 +519,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                             {/* Main User Controls Table */}
                             <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-visible space-y-4">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <h3 className="text-xs font-mono font-black text-slate-400 uppercase tracking-widest">Identity Provisioning Layer</h3>
+                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">User Management</h3>
                                     <div className="flex gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
                                         {["all", "parent", "doctor", "therapist", "child"].map((role) => (
                                             <button 
@@ -540,7 +540,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                         <div className="h-7 w-full animate-shimmer rounded-xl" />
                                     </div>
                                 ) : usersList.length === 0 ? (
-                                    <div className="text-center py-10 text-slate-400 text-xs font-semibold">No nodes registered under selected category.</div>
+                                    <div className="text-center py-10 text-slate-400 text-xs font-semibold">No users found for this role.</div>
                                 ) : (
                                     <div className="overflow-x-auto pb-24">
                                         <table className="w-full text-xs text-left">
@@ -569,10 +569,10 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                             </div>
                                                         </td>
                                                         <td className="py-6">
-                                                            <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase ${
-                                                                user.role === 'doctor' ? 'bg-blue-50 text-blue-600' :
-                                                                user.role === 'therapist' ? 'bg-purple-50 text-purple-600' :
-                                                                user.role === 'parent' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'
+                                                            <span className={`text-xs font-bold ${
+                                                                user.role === 'doctor' ? 'text-blue-600' :
+                                                                user.role === 'therapist' ? 'text-purple-600' :
+                                                                user.role === 'parent' ? 'text-emerald-600' : 'text-slate-600'
                                                             }`}>
                                                                 {user.role}
                                                             </span>
@@ -678,7 +678,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                     {/* TAB 3: HIPAA COMPLIANCE LOGS */}
                     {activeTab === 'audit' && (
                         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden space-y-4">
-                            <h3 className="text-xs font-mono font-black text-slate-400 uppercase tracking-widest">Immutable Audit Ledger Trail</h3>
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Audit Log</h3>
                             {loadingAudit ? (
                                 <div className="space-y-3 p-2">
                                     <div className="h-10 w-full animate-shimmer rounded-xl" />
@@ -686,14 +686,14 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                     <div className="h-10 w-full animate-shimmer rounded-xl" />
                                 </div>
                             ) : auditList.length === 0 ? (
-                                <div className="text-center py-10 text-slate-400 text-xs font-semibold">No transactions recorded in ledger.</div>
+                                <div className="text-center py-10 text-slate-400 text-xs font-semibold">No audit records available.</div>
                             ) : (
                                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                                     {auditList.map((log) => (
                                         <div key={log._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 gap-2 font-mono text-[11px]">
                                             <div>
-                                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black mr-2 ${
-                                                    log.action.startsWith('GET') ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                                                <span className={`text-[9px] font-black mr-2 ${
+                                                    log.action.startsWith('GET') ? 'text-blue-700' : 'text-emerald-700'
                                                 }`}>
                                                     {log.action.split(' ')[0]}
                                                 </span>
@@ -726,7 +726,7 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                 <h3 className="font-black text-slate-850 text-sm">Override User Password</h3>
                             </div>
                             <p className="text-xs text-slate-500">
-                                This will directly hash and write the new credentials for user: <strong className="text-slate-800">{pwdModalUserName}</strong>.
+                                Set a new password for user: <strong className="text-slate-800">{pwdModalUserName}</strong>.
                             </p>
                             
                             <form onSubmit={handleChangePassword} className="space-y-4">

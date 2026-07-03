@@ -38,7 +38,6 @@ export default function Features({ language, onOpenPortal }: FeaturesProps) {
             {/* 1. THE PROBLEM SECTION */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24">
                 <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-                    {/* Red bubble section deleted cleanly from here to ensure layout aesthetic safety */}
 
                     <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight bg-clip-text text-transparent bg-gradient-to-r" style={{ backgroundImage: "linear-gradient(98.64deg, #88D8FF 27.59%, #6E96BE 59.73%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                         {isRtl ? 'المشكلة الحالية' : 'The Problem'}
