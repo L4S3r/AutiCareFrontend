@@ -315,12 +315,25 @@ export async function getUnverifiedPractitioners() {
   return request('/admin/users/unverified-practitioners');
 }
 
+export async function verifyCredentials(id: string) {
+  return request(`/admin/users/${id}/verify-credentials`, {
+    method: 'PUT',
+  });
+}
+
 // ─── Verification Sync ────────────────────────────────────────────────────────
 // Called by the email-not-verified overlay button to ask the backend whether
 // the user has clicked their verification link since last login. Returns
 // { verified: boolean, user?: object } so the App can refresh currentUser.
 export async function syncVerificationStatus(): Promise<{ verified: boolean; user?: any }> {
   return request('/auth/sync-verification-status', { method: 'POST' });
+}
+
+export async function resendVerificationEmail(email: string): Promise<{ success: boolean; message?: string }> {
+  return request('/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
 }
 
 export async function updateProfileAvatar(file: File | null) {

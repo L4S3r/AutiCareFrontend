@@ -14,7 +14,8 @@ import {
     getAdminAuditLogs,
     changeUserPassword,
     bypassVerification,
-    getUnverifiedPractitioners
+    getUnverifiedPractitioners,
+    verifyCredentials
 } from '../api';
 import {
     PieChart, Pie, Cell, ResponsiveContainer,
@@ -175,6 +176,23 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
         }
     };
 
+    // Handle credential approval (separate from email verification bypass)
+    const handleVerifyCredentials = async (userId: string) => {
+        try {
+            const res = await verifyCredentials(userId);
+            if (res.success) {
+                showSuccessMessage("Credentials approved! Now you can bypass email verification.");
+                fetchUsers(selectedRoleFilter);
+                fetchUnverifiedPractitioners();
+            }
+        } catch (err) {
+            console.error("Credential verification error:", err);
+            showErrorMessage("Failed to approve credentials");
+        } finally {
+            setActiveDropdownId(null);
+        }
+    };
+
     // Handle verification bypass manual trigger
     const handleBypassVerification = async (userId: string) => {
         try {
@@ -184,9 +202,10 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                 fetchUsers(selectedRoleFilter);
                 fetchUnverifiedPractitioners();
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Verification bypass error:", err);
-            showErrorMessage("Failed to bypass verification");
+            const msg = err?.message || "Failed to bypass verification";
+            showErrorMessage(msg);
         } finally {
             setActiveDropdownId(null);
         }
@@ -381,9 +400,20 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                     <div>
                                                         <h4 className="font-bold text-slate-800 text-sm">{prac.name}</h4>
                                                         <p className="text-xs text-slate-400">{prac.email}</p>
-                                                        <span className="inline-block mt-2 px-2 py-0.5 rounded-full font-black text-[9px] uppercase bg-amber-100 text-amber-700">
-                                                            {prac.role} (Unverified)
-                                                        </span>
+                                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                                            <span className="inline-block px-2 py-0.5 rounded-full font-black text-[9px] uppercase bg-amber-100 text-amber-700">
+                                                                {prac.role}
+                                                            </span>
+                                                            {prac.credentialsVerified ? (
+                                                                <span className="inline-block px-2 py-0.5 rounded-full font-black text-[9px] uppercase bg-emerald-100 text-emerald-700">
+                                                                    Credentials ✓
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-block px-2 py-0.5 rounded-full font-black text-[9px] uppercase bg-indigo-100 text-indigo-700">
+                                                                    Awaiting Docs Validation
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <button
                                                         onClick={() => setExpandedPractitionerId(expandedPractitionerId === prac._id ? null : prac._id)}
@@ -451,15 +481,33 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                             )}
                                                         </div>
 
-                                                        <div className="flex justify-end pt-2">
+                                                        <div className="flex flex-wrap gap-2 justify-end pt-2">
+                                                        {!prac.credentialsVerified ? (
                                                             <button
-                                                                onClick={() => handleBypassVerification(prac._id)}
-                                                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
+                                                                onClick={() => handleVerifyCredentials(prac._id)}
+                                                                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
                                                             >
                                                                 <UserCheck className="w-4 h-4" />
-                                                                <span>Approve Credentials & Grant Access</span>
+                                                                <span>Approve Credentials</span>
                                                             </button>
-                                                        </div>
+                                                        ) : (
+                                                            <>
+                                                                <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-700 text-[10px] font-black shadow-sm">
+                                                                    <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                                                                    Credentials Approved
+                                                                </span>
+                                                                {!prac.isVerified && (
+                                                                    <button
+                                                                        onClick={() => handleBypassVerification(prac._id)}
+                                                                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
+                                                                    >
+                                                                        <UserCheck className="w-4 h-4" />
+                                                                        <span>Bypass Email Verification</span>
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
                                                     </motion.div>
                                                 )}
                                             </div>
@@ -550,6 +598,9 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                                     if (user.isVerified) {
                                                                         return <span className="text-emerald-500">Active</span>;
                                                                     }
+                                                                    if (user.credentialsVerified) {
+                                                                        return <span className="text-amber-500">Awaiting verification bypass</span>;
+                                                                    }
                                                                     const hasSubmittedFiles = !!(user.nationalIdFront || user.nationalIdBack || (user.certificates && user.certificates.length > 0));
                                                                     if (hasSubmittedFiles) {
                                                                         return <span className="text-indigo-500">Awaiting for validation</span>;
@@ -591,13 +642,24 @@ export default function AdminDashboard({ language, adminUser, onLogout }: AdminD
                                                                         </button>
 
                                                                         {user.role !== 'child' && !user.isVerified && (
-                                                                            <button 
-                                                                                onClick={() => handleBypassVerification(user._id)} 
-                                                                                className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 text-slate-700 cursor-pointer font-bold text-amber-600"
-                                                                            >
-                                                                                <UserCheck className="w-3.5 h-3.5 text-amber-500" />
-                                                                                <span>Bypass Verification</span>
-                                                                            </button>
+                                                                            <>
+                                                                                {!user.credentialsVerified && user.role !== 'parent' && (
+                                                                                    <button 
+                                                                                        onClick={() => handleVerifyCredentials(user._id)} 
+                                                                                        className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 text-slate-700 cursor-pointer font-bold text-emerald-600"
+                                                                                    >
+                                                                                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                                                                                        <span>Approve Credentials</span>
+                                                                                    </button>
+                                                                                )}
+                                                                                <button 
+                                                                                    onClick={() => handleBypassVerification(user._id)} 
+                                                                                    className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center space-x-2 text-slate-700 cursor-pointer font-bold text-amber-600"
+                                                                                >
+                                                                                    <UserCheck className="w-3.5 h-3.5 text-amber-500" />
+                                                                                    <span>Bypass Verification</span>
+                                                                                </button>
+                                                                            </>
                                                                         )}
                                                                     </div>
                                                                 )}

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import { TRANSLATIONS } from '../data';
-import { login, firebaseLogin, checkEmail } from '../api';
+import { login, firebaseLogin, checkEmail, resendVerificationEmail } from '../api';
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 
@@ -45,6 +45,8 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
   const [loading, setLoading] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   // Google Sign-In State
   const [googleUser, setGoogleUser] = useState<{ email: string; displayName: string; idToken: string } | null>(null);
@@ -499,11 +501,36 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
               </p>
             </div>
 
-            {error && (
-              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold">
-                {error}
-              </div>
-            )}
+                {error && (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold text-left">
+                    {error}
+                    {(error.toLowerCase().includes('verify') || error.includes('تأكيد')) && !resendSent && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setResending(true);
+                          try {
+                            await resendVerificationEmail(emailOrUsername);
+                            setResendSent(true);
+                          } catch {
+                            setError(isRtl ? 'فشل إرسال رابط التأكيد. حاول مجدداً.' : 'Failed to resend confirmation link. Try again.');
+                          } finally {
+                            setResending(false);
+                          }
+                        }}
+                        disabled={resending}
+                        className="mt-2 w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {resending ? (isRtl ? 'جار الإرسال...' : 'Sending...') : (isRtl ? 'إعادة إرسال رابط التأكيد' : 'Resend Confirmation Link')}
+                      </button>
+                    )}
+                    {resendSent && (
+                      <p className="mt-2 text-emerald-600 font-bold text-[10px]">
+                        {isRtl ? 'تم إرسال رابط التأكيد الجديد!' : 'New confirmation link sent!'}
+                      </p>
+                    )}
+                  </div>
+                )}
 
             <div className="grid grid-cols-1 gap-4">
 

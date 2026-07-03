@@ -32,7 +32,7 @@ import AdminDashboard from './AdminDashboard';
 import HelpDesk from './HelpDesk';
 import Footer from './Footer';
 import Testimonials from './Testimonials';
-import { register, login, getMe, logout, getPatients, createPatient, syncVerificationStatus } from '../api';
+import { register, login, getMe, logout, getPatients, createPatient, syncVerificationStatus, resendVerificationEmail } from '../api';
 
 const formatChildProfile = (dbChild: any) => {
   if (!dbChild) return null;
@@ -290,6 +290,8 @@ export default function App({ initialTab = 'home' }: AppProps) {
   const [loginPassword, setLoginPassword] = useState<string>('');
   const [isVerificationChecking, setIsVerificationChecking] = useState<boolean>(false);
   const [verificationSyncError, setVerificationSyncError] = useState<string>('');
+  const [isResendingVerification, setIsResendingVerification] = useState<boolean>(false);
+  const [resendVerificationSuccess, setResendVerificationSuccess] = useState<boolean>(false);
 
 
 
@@ -672,6 +674,40 @@ export default function App({ initialTab = 'home' }: AppProps) {
                       isRtl ? 'لقد قمت بالتأكيد — تحقق الآن ✔️' : 'I Have Confirmed My Account ✔️'
                     )}
                   </button>
+
+                  {/* Resend verification link */}
+                  <button
+                    id="btn-resend-verification"
+                    disabled={isResendingVerification}
+                    onClick={async () => {
+                      setIsResendingVerification(true);
+                      setResendVerificationSuccess(false);
+                      try {
+                        await resendVerificationEmail(currentUser.email);
+                        setResendVerificationSuccess(true);
+                      } catch {
+                        setVerificationSyncError(
+                          isRtl
+                            ? 'فشل إرسال رابط التأكيد. حاول مجدداً.'
+                            : 'Failed to resend confirmation link. Try again.'
+                        );
+                      } finally {
+                        setIsResendingVerification(false);
+                      }
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed font-bold text-xs transition-colors duration-200 cursor-pointer"
+                  >
+                    {isResendingVerification ? (
+                      isRtl ? 'جار الإرسال...' : 'Sending...'
+                    ) : (
+                      isRtl ? 'إعادة إرسال رابط التأكيد' : 'Resend Confirmation Link'
+                    )}
+                  </button>
+                  {resendVerificationSuccess && (
+                    <p className="text-[10px] text-emerald-600 font-bold text-center">
+                      {isRtl ? 'تم إرسال رابط التأكيد الجديد!' : 'New confirmation link sent!'}
+                    </p>
+                  )}
 
                   {/* Logout escape hatch */}
                   <button
