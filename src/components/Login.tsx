@@ -504,31 +504,6 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
                 {error && (
                   <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold text-left">
                     {error}
-                    {(error.toLowerCase().includes('verify') || error.includes('تأكيد')) && !resendSent && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setResending(true);
-                          try {
-                            await resendVerificationEmail(emailOrUsername);
-                            setResendSent(true);
-                          } catch {
-                            setError(isRtl ? 'فشل إرسال رابط التأكيد. حاول مجدداً.' : 'Failed to resend confirmation link. Try again.');
-                          } finally {
-                            setResending(false);
-                          }
-                        }}
-                        disabled={resending}
-                        className="mt-2 w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
-                      >
-                        {resending ? (isRtl ? 'جار الإرسال...' : 'Sending...') : (isRtl ? 'إعادة إرسال رابط التأكيد' : 'Resend Confirmation Link')}
-                      </button>
-                    )}
-                    {resendSent && (
-                      <p className="mt-2 text-emerald-600 font-bold text-[10px]">
-                        {isRtl ? 'تم إرسال رابط التأكيد الجديد!' : 'New confirmation link sent!'}
-                      </p>
-                    )}
                   </div>
                 )}
 
@@ -635,6 +610,31 @@ export default function Login({ language, onSuccess, onNavigateToSignUp }: Login
             {error && (
               <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold text-left">
                 {error}
+                {(error.toLowerCase().includes('verify') || error.includes('تأكيد')) && !resendSent && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setResending(true);
+                      try {
+                        await resendVerificationEmail(emailOrUsername);
+                        setResendSent(true);
+                      } catch {
+                        setError(isRtl ? 'فشل إرسال رابط التأكيد. حاول مجدداً.' : 'Failed to resend confirmation link. Try again.');
+                      } finally {
+                        setResending(false);
+                      }
+                    }}
+                    disabled={resending}
+                    className="mt-2 w-full py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {resending ? (isRtl ? 'جار الإرسال...' : 'Sending...') : (isRtl ? 'إعادة إرسال رابط التأكيد' : 'Resend Confirmation Link')}
+                  </button>
+                )}
+                {resendSent && (
+                  <p className="mt-2 text-emerald-600 font-bold text-[10px]">
+                    {isRtl ? 'تم إرسال رابط التأكيد الجديد!' : 'New confirmation link sent!'}
+                  </p>
+                )}
               </div>
             )}
 
