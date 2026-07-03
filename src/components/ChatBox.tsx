@@ -71,13 +71,16 @@ export default function ChatBox({ childId, childName, currentUser, participants,
       if (!childId || !activeParticipant) return;
       try {
         const res = await getChatHistory(childId, activeParticipant._id);
-        if (!res.success || !res.data) return;
+        if (!res.success || !(res.data as any[])?.length) return;
+        const fresh = res.data as any[];
         setMessages(prev => {
           const prevIds = new Set(prev.map((m: any) => m._id || m.id));
-          const hasNew = (res.data as any[]).some((m: any) => !prevIds.has(m._id || m.id));
-          return hasNew ? res.data : prev;
+          const hasNew = fresh.some((m: any) => !prevIds.has(m._id || m.id));
+          return hasNew ? fresh : prev;
         });
-      } catch {}
+      } catch {
+        // poll silently
+      }
     }, 4000);
 
     return () => clearInterval(pollInterval);
