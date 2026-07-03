@@ -7,6 +7,7 @@ import {
   Bell, Mic, Upload, Trash2, Sliders
 } from 'lucide-react';
 import { Language } from '../types';
+import { ResponsiveContainer, LineChart as ReLineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { io, Socket } from 'socket.io-client';
 import { useNotificationStore } from '../store/useNotificationStore';
 import {
@@ -99,7 +100,31 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const [logSleep, setLogSleep] = useState('8');
   const [logNotes, setLogNotes] = useState('');
   const [logSuccess, setLogSuccess] = useState(false);
-  const [logMedications, setLogMedications] = useState<{ name: string; time: string; taken: boolean }[]>([]);
+  const [logMedications, setLogMedications] = useState<{ name: string; time: string; taken: boolean }[]>([
+    { name: 'Methyl Folate', time: 'morning', taken: false },
+    { name: 'Methylcobalamin', time: 'evening', taken: false },
+    { name: 'Vitamin D3+K2', time: 'morning', taken: false },
+  ]);
+
+  // ─── CHART DATA ────────────────────────────────────────────
+  const moodScore = (mood: string) => {
+    switch (mood) {
+      case 'very_happy': return 90;
+      case 'happy': return 75;
+      case 'neutral': return 60;
+      case 'anxious': return 40;
+      case 'sad': return 35;
+      case 'very_sad': return 20;
+      case 'angry': return 15;
+      default: return 50;
+    }
+  };
+
+  const chartData = logs.filter((l: any) => l.date && l.sleep).map((l: any) => ({
+    name: new Date(l.date).toLocaleDateString(isRtl ? 'ar' : 'en', { weekday: 'short' }),
+    Mood: moodScore(l.mood),
+    Sleep: parseFloat(l.sleep) * 10 || 50,
+  }));
 
   // ─── VOICE NLP ────────────────────────────────────────────
   const [isListening, setIsListening] = useState(false);
@@ -641,6 +666,44 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                     </tbody>
                   </table>
                 </div>
+
+                {chartData.length > 0 && (
+                  <div className="border-t pt-4">
+                    <h4 className="text-xs font-black uppercase text-slate-800 mb-3">{isRtl ? 'الرسم البياني' : 'Behavior Chart'}</h4>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <ReLineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="Mood" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="Sleep" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                      </ReLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                <div className="border-t pt-4 space-y-3">
+                  <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'التحليل السلوكي بالذكاء الاصطناعي' : 'AI Behavioral Analysis'}</span>
+                  {loadingPrediction ? (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-12" />
+                  ) : predictionError ? (
+                    <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                      <span className="text-xs font-bold text-amber-700">{predictionError}</span>
+                    </div>
+                  ) : predictionData ? (
+                    <div className={`p-4 rounded-2xl border ${predictionData.riskScore > 50 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{isRtl ? 'مؤشر الخطر' : 'Risk Index'}</p>
+                      <p className={`text-2xl font-black font-mono ${predictionData.riskScore > 50 ? 'text-rose-500' : 'text-emerald-500'}`}>{predictionData.riskScore}%</p>
+                      <p className="text-xs font-semibold text-slate-600 mt-1">{predictionData.message}</p>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50 text-slate-400 text-xs rounded-xl border border-dashed border-slate-200">
+                      {isRtl ? 'سجل سلوكيات الطفل لبدء التحليل' : 'Log behaviors to generate AI insights'}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -677,14 +740,40 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                   </div>
 
                   <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-6">
-                    <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
-                      <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block">{isRtl ? 'الأطعمة الممنوعة' : 'Restricted Foods'}</span>
-                      <ul className={`list-disc list-inside text-xs text-slate-600 font-medium space-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
-                        {nutritionPlan.aiRecommendation?.foodRestrictions?.map((item: any, idx: number) => (
-                          <li key={idx}>{typeof item === 'string' ? item : String(item.name || Object.values(item)[0])}</li>
-                        )) || <li className="italic text-slate-400">{isRtl ? 'لا توجد' : 'None listed'}</li>}
-                      </ul>
-                    </div>
+                    {(() => {
+                      const restrictions = nutritionPlan.aiRecommendation?.foodRestrictions || [];
+                      const mid = Math.ceil(restrictions.length / 2);
+                      const restricted = restrictions.slice(0, mid);
+                      const toInclude = restrictions.slice(mid);
+                      return (
+                        <>
+                          <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-2xl space-y-2">
+                            <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block">{isRtl ? 'الأطعمة الممنوعة' : 'Restricted Foods'}</span>
+                            {restricted.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">{isRtl ? 'لا توجد' : 'None listed'}</p>
+                            ) : (
+                              <ul className={`list-disc list-inside text-xs text-slate-600 font-medium space-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
+                                {restricted.map((item: any, idx: number) => (
+                                  <li key={idx}>{typeof item === 'string' ? item : String(item.name || Object.values(item)[0])}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                          <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl space-y-2">
+                            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider block">{isRtl ? 'الأطعمة المسموحة' : 'Foods to Include'}</span>
+                            {toInclude.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">{isRtl ? 'لا توجد' : 'None listed'}</p>
+                            ) : (
+                              <ul className={`list-disc list-inside text-xs text-slate-600 font-medium space-y-1 ${isRtl ? 'text-right' : 'text-left'}`}>
+                                {toInclude.map((item: any, idx: number) => (
+                                  <li key={idx}>{typeof item === 'string' ? item : String(item.name || Object.values(item)[0])}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
 
                     <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1">
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block flex items-center gap-1">
@@ -846,28 +935,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
                 )}
               </div>
 
-              {/* AI PREDICTION */}
-              <div className="border-t pt-4 space-y-3">
-                <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase block">{isRtl ? 'التحليل السلوكي بالذكاء الاصطناعي' : 'AI Behavioral Analysis'}</span>
-                {loadingPrediction ? (
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-pulse h-12" />
-                ) : predictionError ? (
-                  <div className="flex items-center space-x-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                    <span className="text-xs font-bold text-amber-700">{predictionError}</span>
-                  </div>
-                ) : predictionData ? (
-                  <div className={`p-4 rounded-2xl border ${predictionData.riskScore > 50 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{isRtl ? 'مؤشر الخطر' : 'Risk Index'}</p>
-                    <p className={`text-2xl font-black font-mono ${predictionData.riskScore > 50 ? 'text-rose-500' : 'text-emerald-500'}`}>{predictionData.riskScore}%</p>
-                    <p className="text-xs font-semibold text-slate-600 mt-1">{predictionData.message}</p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-slate-50 text-slate-400 text-xs rounded-xl border border-dashed border-slate-200">
-                    {isRtl ? 'سجل سلوكيات الطفل لبدء التحليل' : 'Log behaviors to generate AI insights'}
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
