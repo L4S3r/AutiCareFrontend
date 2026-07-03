@@ -28,15 +28,16 @@ function HeroSection() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left content */}
           <div className="animate-fade-in-up">
-            <h1 className="text-4xl lg:text-5xl font-extrabold text-[var(--color-text-primary)] leading-[1.15] mb-5">
-              AI-Powered Autism{" "}
-              <br />
-              Support for Better Care
-            </h1>
-            <p className="text-base text-[var(--color-text-secondary)] mb-8 max-w-lg leading-relaxed">
-              AutiCare AI combines genetic nutrition intelligence with multi-provider
-              care coordination, empowering doctors, therapists, and families together.
-            </p>
+              <h1 className="text-4xl lg:text-5xl font-extrabold text-[var(--color-text-primary)] leading-[1.15] mb-5">
+                Personalized Autism{" "}
+                <br />
+                Care & Connection Platform
+              </h1>
+              <p className="text-base text-[var(--color-text-secondary)] mb-8 max-w-lg leading-relaxed">
+                AutiCare brings together doctors, therapists, and families on one platform.
+                Personalized nutrition plans, daily behavior tracking, and care coordination
+                designed for your child's unique needs.
+              </p>
 
             <Link href="/contact" className="btn btn-amber mb-8">
               Book Demo <ArrowRight className="w-4 h-4" />
@@ -61,7 +62,7 @@ function HeroSection() {
             <div className="relative">
               <Image
                 src="/images/hero-child.png"
-                alt="Child with AI therapy robot"
+                alt="Child with therapy robot"
                 width={500}
                 height={360}
                 className="rounded-2xl object-cover"
@@ -120,7 +121,7 @@ function ProblemSection() {
     {
       icon: AlertTriangle,
       title: "Disconnected Ecosystem",
-      desc: "Parents manually track meals, sleep, and medications across disconnected apps with no AI guidance.",
+      desc: "Parents manually track meals, sleep, and medications across disconnected apps with no unified guidance.",
       bg: "bg-rose-50/50",
       border: "border-rose-100",
       color: "text-rose-600"
@@ -185,14 +186,14 @@ function SolutionSection() {
   const topFeatures = [
     {
       icon: Dna,
-      title: "AI Genetic Nutrition",
-      desc: "Analyzes MTHFR, VDR, HLA-DQ2, FADS, and 6+ more markers to generate supplement and dietary plans.",
+      title: "Personalized Nutrition & Diet Plan",
+      desc: "Analyzes genetic markers like MTHFR, VDR, and HLA-DQ2 to create supplement and dietary plans tailored to your child.",
       color: "bg-white",
     },
     {
       icon: BarChart3,
-      title: "Behavioral Analytics",
-      desc: "Track mood, sleep, meltdowns, and therapy attendance with AI-powered trend analysis.",
+      title: "Behavioral Pattern Tracking",
+      desc: "Track mood, sleep, meltdowns, and therapy attendance with clear trend charts and insights.",
       color: "bg-white",
     },
   ];
@@ -200,14 +201,14 @@ function SolutionSection() {
   const bottomFeatures = [
     {
       icon: Users,
-      title: "Care Coordination",
+      title: "Shared Workspace for Your Care Team",
       desc: "Doctor, therapist, parent, and child dashboards with real-time notes and alerts.",
       bg: "bg-[#EBF5FB]",
     },
     {
       icon: Bell,
-      title: "Predictive Alerts",
-      desc: "ML-powered meltdown and regression risk scores with intervention recommendations.",
+      title: "Early Warning Alerts",
+      desc: "Get notified about behavioral changes early, with practical tips to help prevent meltdowns.",
       bg: "bg-[#EBF5FB]",
     },
     {
@@ -239,10 +240,10 @@ function SolutionSection() {
             Our <span className="text-[var(--color-brand-primary)]">Solution</span>
           </h2>
           <p className="text-sm text-[var(--color-text-muted)] italic mb-1">
-            we offer top services
+            Everything you need in one place
           </p>
           <p className="text-sm text-[var(--color-text-muted)] max-w-2xl mx-auto">
-            From genetic analysis to behavioral prediction — all in one secure, compliant platform.
+            From genetic analysis to daily behavior tracking — all in one secure, compliant platform.
           </p>
         </div>
 
@@ -330,8 +331,8 @@ function WorkflowSection() {
   const steps = [
     "Doctor uploads genetic PDF report",
     "OCR extracts genetic marker data",
-    "AI rule engine maps markers → interventions",
-    "Doctor reviews and edits AI suggestions",
+    "Rule engine maps markers → interventions",
+    "Doctor reviews and edits suggestions",
     "Doctor approves the final plan",
     "Parent receives approved nutrition plan",
   ];
@@ -384,9 +385,9 @@ function WorkflowSection() {
               height={320}
               className="rounded-2xl object-cover shadow-lg"
             />
-            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white shadow-md rounded-full px-4 py-2 text-xs font-semibold text-[var(--color-brand-primary)] flex items-center gap-2 border border-[var(--color-border-light)]">
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs font-semibold text-[var(--color-brand-primary)] flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-500" />
-              Best Certified Team of Specialists
+              Certified team of specialists
             </div>
           </div>
         </div>
@@ -402,7 +403,7 @@ function RolesSection() {
   const roles = [
     {
       title: "Doctor",
-      desc: "Uploads genetic report & approves AI plan.",
+      desc: "Uploads genetic report & approves plan.",
       color: "text-[var(--color-brand-primary)]",
     },
     {
@@ -476,7 +477,7 @@ function TestimonialsSection() {
     {
       name: "— Pediatric Neurologist",
       quote:
-        "AutiCare AI transformed how I manage my ASD patients. The genetic nutrition planning alone saved me hours of research per patient.",
+        "AutiCare transformed how I manage my ASD patients. The personalized nutrition planning alone saved me hours of research per patient.",
       avatar: "/images/avatar-1.png",
     },
     {
@@ -488,13 +489,13 @@ function TestimonialsSection() {
     {
       name: "— ABA Therapist",
       quote:
-        "The behavioral analytics help me see patterns I would have missed. My session plans are so much more targeted now.",
+        "The behavioral tracking helps me see patterns I would have missed. My session plans are so much more targeted now.",
       avatar: "/images/avatar-3.png",
     },
     {
       name: "— Medical Director",
       quote:
-        "We deployed AutiCare AI across our 3 clinics. The coordination improvement is remarkable. Highly recommended for any autism specialty center.",
+        "We deployed AutiCare across our 3 clinics. The coordination improvement is remarkable. Highly recommended for any autism specialty center.",
       avatar: "/images/avatar-4.png",
     },
   ];
