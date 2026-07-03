@@ -4,19 +4,23 @@ import {
   Users, Calendar, Clock, LogOut, CheckCircle2, AlertCircle,
   Smile, Heart, ArrowRight, ShieldCheck, FileText, Settings,
   Activity, Sparkles, ChevronRight, UserPlus, ClipboardList, ChevronLeft,
-  Plus, Upload, Stethoscope
+  Plus, Upload, Stethoscope, MessageSquare
 } from 'lucide-react';
 import { Language } from '../types';
 import BehavioralTracker from './BehavioralTracker';
-import { updateProfileAvatar, getUnassignedPatients, assignSelfToPatient } from '../api';
+import { updateProfileAvatar, getUnassignedPatients, assignSelfToPatient, getPatients } from '../api';
+import ChatBox from './ChatBox';
 
 interface TherapistDashboardProps {
   language: Language;
   therapistUser: {
+    _id?: string;
+    id?: string;
     name: string;
     email: string;
     clinic?: string;
     avatar?: string;
+    role?: string;
   };
   onLogout: () => void;
 }
@@ -34,6 +38,8 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
   const [unassignedList, setUnassignedList] = useState<any[]>([]);
   const [loadingUnassigned, setLoadingUnassigned] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [patientsList, setPatientsList] = useState<any[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(false);
 
   const stats = [
     { label: isRtl ? 'إجمالي الحالات' : 'Total Patients', value: '18', icon: <Users className="w-5 h-5 text-sky-500" /> },
@@ -46,6 +52,18 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
     { id: 'PAT-02', name: 'Jane Smith', age: '8 Years', level: 'Level 2', progress: 70, gender: 'Female', notes: 'GFCF diet compliance is high. Motor coordination sessions are positive.' },
     { id: 'PAT-03', name: 'Sam Brown', age: '5 Years', level: 'Level 1', progress: 20, gender: 'Male', notes: 'Session was restless around late evening triggers. Recommended quiet sensory room.' }
   ];
+
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        setLoadingPatients(true);
+        const res = await getPatients();
+        if (res.success && res.data) setPatientsList(res.data);
+      } catch { /* ignore */ }
+      finally { setLoadingPatients(false); }
+    };
+    fetchPatients();
+  }, []);
 
   const handleAssignDoctorOptimistic = (doctorId: string, doctorName: string) => {
     if (!selectedPatient) return;
@@ -295,6 +313,42 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {selectedPatient && (
+            <div className="pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare className="w-4 h-4 text-indigo-500" />
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  {isRtl ? 'التواصل مع الفريق' : 'Care Team Communication'}
+                </h4>
+              </div>
+              {(() => {
+                const therapistId = therapistUser._id || therapistUser.id || '';
+                const parentObj = selectedPatient.parentId;
+                const parentParticipant = parentObj && typeof parentObj === 'object' && parentObj._id
+                  ? { _id: parentObj._id, name: parentObj.name, role: 'parent' as const, childName: selectedPatient.name }
+                  : null;
+                const doctorObj = selectedPatient.assignedDoctor;
+                const doctorParticipant = doctorObj && typeof doctorObj === 'object' && (doctorObj as any)._id
+                  ? { _id: (doctorObj as any)._id, name: (doctorObj as any).name, role: 'doctor' as const, childName: selectedPatient.name }
+                  : null;
+                const chatParticipants = [parentParticipant, doctorParticipant].filter(Boolean);
+                return chatParticipants.length > 0 ? (
+                  <ChatBox
+                    childId={selectedPatient._id || selectedPatient.id}
+                    childName={selectedPatient.name}
+                    currentUser={{ _id: therapistId, name: therapistUser.name, role: therapistUser.role || 'therapist' }}
+                    participants={chatParticipants}
+                    language={language}
+                  />
+                ) : (
+                  <p className="text-xs text-slate-400 italic font-medium p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    {isRtl ? 'لم يتم تعيين والد أو طبيب لهذه الحالة بعد' : 'No parent or doctor assigned to this case yet'}
+                  </p>
+                );
+              })()}
             </div>
           )}
 

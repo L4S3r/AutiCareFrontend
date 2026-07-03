@@ -3,16 +3,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Dna, MessageSquare, Settings, LogOut, ChevronRight,
   ChevronLeft, ShieldCheck, User, CheckCircle2,
-  AlertCircle, Send, Users, Stethoscope, Sparkles, Activity,
+  AlertCircle, Users, Stethoscope, Sparkles, Activity,
   Bell, Mic, Upload, Trash2, Sliders
 } from 'lucide-react';
 import { Language } from '../types';
 import { ResponsiveContainer, LineChart as ReLineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { io, Socket } from 'socket.io-client';
+import ChatBox from './ChatBox';
 import { useNotificationStore } from '../store/useNotificationStore';
 import {
   getNutritionPlans,
-  getChatHistory,
   getBehaviorLogs,
   createBehaviorLog,
   getAIPrediction,
@@ -47,10 +46,7 @@ interface ParentDashboardProps {
   onLogout: () => void;
 }
 
-interface ChatRegistry {
-  doctor: any[];
-  therapist: any[];
-}
+
 
 export default function ParentDashboard({ language, parentUser, onLogout }: ParentDashboardProps) {
   const isRtl = language === 'ar';
@@ -132,14 +128,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   const recognitionRef = useRef<any>(null);
   const shouldBeListeningRef = useRef(false);
 
-  // ─── CHAT ─────────────────────────────────────────────────
-  const [activeChannel, setActiveChannel] = useState<'doctor' | 'therapist'>('doctor');
-  const [messages, setMessages] = useState<ChatRegistry>({ doctor: [], therapist: [] });
-  const [inputText, setInputText] = useState('');
-  const socketRef = useRef<Socket | null>(null);
-
-  const activePartnerId = activeChannel === 'doctor' ? doctorUserId : therapistUserId;
-
   const loadEcosystemLogs = async () => {
     try {
       const res = await getBehaviorLogs(childId);
@@ -198,50 +186,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
   }, [childId, language]);
 
   useEffect(() => {
-    const loadConversationHistory = async () => {
-      if (!childId || !activePartnerId) return;
-      try {
-        const res = await getChatHistory(childId, activePartnerId);
-        if (res.success && res.data) {
-          setMessages(prev => {
-            const next = { ...prev };
-            next[activeChannel] = res.data || [];
-            return next;
-          });
-        }
-      } catch (err) {
-        console.error("Failed to load chat history:", err);
-      }
-    };
-    loadConversationHistory();
-  }, [activeChannel, childId, activePartnerId]);
-
-  useEffect(() => {
-    if (!parentId) return;
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-    const socket = io(socketUrl);
-    socketRef.current = socket;
-
-    socket.emit('register_user', parentId);
-
-    socket.on('receive_direct_message', (incomingMsg: any) => {
-      if (incomingMsg.patientId === childId) {
-        const channelKey = incomingMsg.senderRole === 'doctor' ? 'doctor' : 'therapist';
-        setMessages(prev => {
-          const next = { ...prev };
-          next[channelKey] = [...next[channelKey], incomingMsg];
-          return next;
-        });
-      }
-    });
-
-    return () => {
-      socket.off('receive_direct_message');
-      socket.disconnect();
-    };
-  }, [parentId, childId]);
-
-  useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
@@ -297,39 +241,6 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
       setVoiceError('');
       try { recognitionRef.current.start(); } catch { }
     }
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || !socketRef.current) return;
-
-    const payload = {
-      patientId: childId,
-      senderId: parentId,
-      senderRole: 'parent',
-      receiverId: activePartnerId,
-      text: inputText.trim()
-    };
-
-    socketRef.current.emit('send_direct_message', payload);
-
-    const localOptimisticMessage = {
-      _id: Date.now().toString(),
-      patientId: childId,
-      sender: parentId,
-      senderRole: 'parent',
-      receiver: activePartnerId,
-      text: inputText.trim(),
-      createdAt: new Date().toISOString()
-    };
-
-    setMessages(prev => {
-      const next = { ...prev };
-      next[activeChannel] = [...next[activeChannel], localOptimisticMessage];
-      return next;
-    });
-
-    setInputText('');
   };
 
   const handleAddLogSubmit = async (e: React.FormEvent) => {
@@ -793,82 +704,26 @@ export default function ParentDashboard({ language, parentUser, onLogout }: Pare
 
           {/* TAB: CHAT */}
           {activeTab === 'chat' && (
-            <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-xs overflow-hidden animate-fade-in text-left">
-              <div className={`bg-gradient-to-r from-indigo-600 to-blue-600 p-4 text-white flex justify-between items-center ${isRtl ? 'flex-row-reverse' : ''}`}>
-                <div>
-                  <h3 className="font-bold text-sm flex items-center gap-2">
-                    💬 {isRtl ? 'التواصل الآمن' : 'Secure Communication'}
-                  </h3>
-                  <p className="text-[10px] text-blue-100 font-medium">{isRtl ? 'قناة مشفرة' : 'Encrypted channel'}</p>
+            <div className="animate-fade-in">
+              {childId && (doctorUserId || therapistUserId) ? (
+                <ChatBox
+                  childId={childId}
+                  childName={childName}
+                  currentUser={{ _id: parentId, name: parentUser.name, role: 'parent' }}
+                  participants={[
+                    ...(doctorUserId ? [{ _id: doctorUserId, name: doctorNameStr || (isRtl ? 'الطبيب' : 'Doctor'), role: 'doctor' as const, childName }] : []),
+                    ...(therapistUserId ? [{ _id: therapistUserId, name: therapistNameStr || (isRtl ? 'المعالج' : 'Therapist'), role: 'therapist' as const, childName }] : []),
+                  ]}
+                  language={language}
+                />
+              ) : (
+                <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
+                  <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs text-slate-400 font-medium">
+                    {isRtl ? 'لا يوجد متخصصون للتواصل معهم بعد' : 'No specialists assigned yet'}
+                  </p>
                 </div>
-                {activePartnerId && (
-                  <span className="text-[10px] bg-white/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono font-bold">
-                    {isRtl ? 'متصل' : 'Live'}
-                  </span>
-                )}
-              </div>
-
-              <div className={`grid grid-cols-1 md:grid-cols-4 h-96 ${isRtl ? 'md:grid-flow-col' : ''}`}>
-                <div className={`border-r border-slate-100 dark:border-slate-700 bg-slate-50/50 p-2 flex md:flex-col gap-1.5 ${isRtl ? 'border-r-0 border-l' : ''}`}>
-                  {!doctorUserId && !therapistUserId ? (
-                    <p className="text-xs text-slate-400 p-2 text-center">{isRtl ? 'لا يوجد متخصصون بعد' : 'No specialists assigned yet'}</p>
-                  ) : (
-                    <>
-                      {doctorUserId && (
-                        <button type="button" onClick={() => setActiveChannel('doctor')} className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : ''} ${activeChannel === 'doctor' ? 'bg-white dark:bg-slate-700 shadow-xs border border-slate-100 dark:border-slate-600 font-black text-indigo-600' : 'opacity-60 hover:opacity-100'}`}>
-                          <span className="text-base">👨‍⚕️</span>
-                          <div className="text-[11px]">
-                            <p className="text-slate-800 dark:text-slate-200">{doctorNameStr || (isRtl ? 'الطبيب' : 'Doctor')}</p>
-                            <p className="text-[9px] text-blue-500 font-bold">{isRtl ? 'الطبيب المشرف' : 'Physician'}</p>
-                          </div>
-                        </button>
-                      )}
-                      {therapistUserId && (
-                        <button type="button" onClick={() => setActiveChannel('therapist')} className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all cursor-pointer ${isRtl ? 'flex-row-reverse text-right' : ''} ${activeChannel === 'therapist' ? 'bg-white dark:bg-slate-700 shadow-xs border border-slate-100 dark:border-slate-600 font-black text-purple-600' : 'opacity-60 hover:opacity-100'}`}>
-                          <span className="text-base">👩‍🏫</span>
-                          <div className="text-[11px]">
-                            <p className="text-slate-800 dark:text-slate-200">{therapistNameStr || (isRtl ? 'المعالج' : 'Therapist')}</p>
-                            <p className="text-[9px] text-purple-500 font-bold">{isRtl ? 'أخصائي السلوك' : 'ABA Specialist'}</p>
-                          </div>
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="col-span-3 flex flex-col justify-between p-4 bg-slate-50/10">
-                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-none">
-                    {!activePartnerId ? (
-                      <div className="text-xs text-slate-400 text-center py-8">{isRtl ? 'لا يوجد متخصصون للتواصل معهم' : 'No specialists to communicate with'}</div>
-                    ) : messages[activeChannel]?.length === 0 ? (
-                      <div className="text-xs text-slate-400 text-center py-8">{isRtl ? 'لا توجد رسائل بعد' : 'No messages yet'}</div>
-                    ) : (
-                      messages[activeChannel]?.map((msg: any) => {
-                        const isParent = msg.senderRole === 'parent' || msg.sender === parentId;
-                        return (
-                          <div key={msg._id || msg.id || Math.random()} className={`flex flex-col ${isParent ? 'items-end' : 'items-start'} animate-fade-in`}>
-                            <div className={`max-w-[80%] p-2.5 rounded-2xl text-xs leading-relaxed ${isParent ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-bl-none border border-slate-100 dark:border-slate-600'}`}>
-                              {msg.text}
-                            </div>
-                            <span className="text-[8px] text-slate-400 mt-0.5 px-1">
-                              {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {activePartnerId && (
-                    <form onSubmit={handleSendMessage} className={`mt-3 flex gap-2 ${isRtl ? 'flex-row-reverse' : ''}`}>
-                      <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder={isRtl ? 'اكتب رسالتك...' : 'Type a message...'} className={`input flex-1 bg-white dark:bg-slate-900 text-xs h-9 py-1 ${isRtl ? 'text-right direction-rtl' : ''}`} />
-                      <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-xl flex items-center justify-center cursor-pointer transition-colors">
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                    </form>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           )}
 

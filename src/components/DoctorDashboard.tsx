@@ -4,18 +4,22 @@ import {
   Stethoscope, Users, Calendar, Clock, LogOut, CheckCircle2,
   Dna, Heart, ArrowRight, ShieldCheck, FileText, Settings,
   Activity, Sparkles, ChevronRight, UserPlus, ChevronLeft,
-  Wand2, Check, AlertCircle, Plus, Upload
+  Wand2, Check, AlertCircle, Plus, Upload, MessageSquare
 } from 'lucide-react';
 import { Language } from '../types';
 import { getPatients, getGeneticReports, generateNutritionPlan, approveNutritionPlan, getNutritionPlans, updateProfileAvatar, uploadGeneticReportFile, getUnassignedPatients, assignSelfToPatient } from '../api';
+import ChatBox from './ChatBox';
 
 interface DoctorDashboardProps {
   language: Language;
   doctorUser: {
+    _id?: string;
+    id?: string;
     name: string;
     email: string;
     clinic?: string;
     avatar?: string;
+    role?: string;
   };
   onLogout: () => void;
 }
@@ -610,6 +614,44 @@ export default function DoctorDashboard({ language, doctorUser, onLogout }: Doct
                     </button>
                   )}
                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageSquare className="w-4 h-4 text-indigo-500" />
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                    {isRtl ? 'التواصل مع الفريق' : 'Care Team Communication'}
+                  </h4>
+                </div>
+                {(() => {
+                  const docId = doctorUser._id || doctorUser.id || '';
+                  const parentObj = selectedPatient.parentId;
+                  const parentParticipant = parentObj && typeof parentObj === 'object' && parentObj._id
+                    ? { _id: parentObj._id, name: parentObj.name, role: 'parent' as const, childName: selectedPatient.name }
+                    : null;
+                  const therapistParticipants = (selectedPatient.assignedTherapists || [])
+                    .filter((t: any) => t && (t._id || t.id))
+                    .map((t: any) => ({
+                      _id: t._id || t.id,
+                      name: t.name,
+                      role: 'therapist' as const,
+                      childName: selectedPatient.name
+                    }));
+                  const chatParticipants = [parentParticipant, ...therapistParticipants].filter(Boolean);
+                  return chatParticipants.length > 0 ? (
+                    <ChatBox
+                      childId={selectedPatient._id || selectedPatient.id}
+                      childName={selectedPatient.name}
+                      currentUser={{ _id: docId, name: doctorUser.name, role: doctorUser.role || 'doctor' }}
+                      participants={chatParticipants}
+                      language={language}
+                    />
+                  ) : (
+                    <p className="text-xs text-slate-400 italic font-medium p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      {isRtl ? 'لم يتم تعيين والد أو أخصائي لهذه الحالة بعد' : 'No parent or therapists assigned to this case yet'}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
           )}
