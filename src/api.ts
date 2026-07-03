@@ -133,6 +133,16 @@ export async function getPatients() {
   return request('/patients');
 }
 
+export async function getUnassignedPatients() {
+  return request('/patients/unassigned');
+}
+
+export async function assignSelfToPatient(patientId: string) {
+  return request(`/patients/${patientId}/assign-self`, {
+    method: 'POST',
+  });
+}
+
 export async function getPatientSummary(childId: string) {
   return request(`/patients/${childId}/summary`);
 }

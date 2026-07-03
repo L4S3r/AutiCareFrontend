@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../types';
 import BehavioralTracker from './BehavioralTracker';
-import { updateProfileAvatar } from '../api';
+import { updateProfileAvatar, getUnassignedPatients, assignSelfToPatient } from '../api';
 
 interface TherapistDashboardProps {
   language: Language;
@@ -30,6 +30,10 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
   const [dummyState, setDummyState] = useState(0);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [showUnassigned, setShowUnassigned] = useState(false);
+  const [unassignedList, setUnassignedList] = useState<any[]>([]);
+  const [loadingUnassigned, setLoadingUnassigned] = useState(false);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
   const stats = [
     { label: isRtl ? 'إجمالي الحالات' : 'Total Patients', value: '18', icon: <Users className="w-5 h-5 text-sky-500" /> },
@@ -130,6 +134,75 @@ export default function TherapistDashboard({ language, therapistUser, onLogout }
                   </div>
                 ))}
               </div>
+
+              <div className="flex justify-end -mt-2">
+                <button
+                  onClick={async () => {
+                    if (showUnassigned) { setShowUnassigned(false); return; }
+                    setLoadingUnassigned(true);
+                    setShowUnassigned(true);
+                    try {
+                      const res = await getUnassignedPatients();
+                      if (res.success) setUnassignedList(res.data || []);
+                    } catch { /* ignore */ }
+                    finally { setLoadingUnassigned(false); }
+                  }}
+                  className="px-3 py-1.5 bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-black rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  {showUnassigned ? (isRtl ? 'إغلاق' : 'Close') : (isRtl ? 'البحث عن حالات' : 'Find Patients')}
+                </button>
+              </div>
+
+              {showUnassigned && (
+                <div className="bg-gradient-to-br from-sky-50 to-indigo-50/50 border border-sky-200 rounded-3xl p-5 shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-2 mb-4">
+                    <UserPlus className="w-4 h-4 text-sky-600" />
+                    <h3 className="text-xs font-black text-sky-800 uppercase tracking-widest">{isRtl ? 'حالات بدون أخصائي' : 'Available Children'}</h3>
+                  </div>
+                  {loadingUnassigned ? (
+                    <div className="space-y-2 p-2">
+                      <div className="h-7 w-full animate-shimmer rounded-xl" />
+                      <div className="h-7 w-full animate-shimmer rounded-xl" />
+                    </div>
+                  ) : unassignedList.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic font-medium">{isRtl ? 'جميع الحالات لديها أخصائي معين.' : 'All children already have a therapist assigned.'}</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {unassignedList.map((child: any) => (
+                        <div key={child._id || child.id} className="flex items-center justify-between bg-white rounded-xl p-3 border border-sky-100 shadow-xs">
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">{child.name}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{child.gender} · {child.asdLevel || 'Level not set'}</p>
+                            {child.parentId && <p className="text-[9px] text-slate-400">{isRtl ? 'الوالد:' : 'Parent:'} {(child.parentId as any)?.name || String(child.parentId)}</p>}
+                          </div>
+                          <button
+                            onClick={async () => {
+                              setAssigningId(child._id || child.id);
+                              try {
+                                const res = await assignSelfToPatient(child._id || child.id);
+                                if (res.success) {
+                                  setUploadSuccess(isRtl ? 'تم تعيين الحالة لك!' : 'Case assigned to you!');
+                                  setUnassignedList(prev => prev.filter(c => (c._id || c.id) !== (child._id || child.id)));
+                                  setTimeout(() => setUploadSuccess(''), 4000);
+                                }
+                              } catch (err: any) {
+                                setUploadError(err?.message || (isRtl ? 'فشل التعيين' : 'Assignment failed'));
+                                setTimeout(() => setUploadError(''), 4000);
+                              } finally { setAssigningId(null); }
+                            }}
+                            disabled={assigningId === (child._id || child.id)}
+                            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-black rounded-xl transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            {assigningId === (child._id || child.id) ? (isRtl ? '...جار' : 'Adding...') : (isRtl ? 'تعيين لي' : 'Assign to Me')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm overflow-hidden">
                 <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase mb-4">Patient Registry</h3>
