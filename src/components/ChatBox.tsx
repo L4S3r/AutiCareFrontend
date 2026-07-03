@@ -66,6 +66,21 @@ export default function ChatBox({ childId, childName, currentUser, participants,
       }
     };
     loadHistory();
+
+    const pollInterval = setInterval(async () => {
+      if (!childId || !activeParticipant) return;
+      try {
+        const res = await getChatHistory(childId, activeParticipant._id);
+        if (!res.success || !res.data) return;
+        setMessages(prev => {
+          const prevIds = new Set(prev.map((m: any) => m._id || m.id));
+          const hasNew = (res.data as any[]).some((m: any) => !prevIds.has(m._id || m.id));
+          return hasNew ? res.data : prev;
+        });
+      } catch {}
+    }, 4000);
+
+    return () => clearInterval(pollInterval);
   }, [childId, activeParticipant]);
 
   useEffect(() => {
